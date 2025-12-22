@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('filing_old_medicines', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
-            $table->foreignUuid('rip_invoice_user_id')->constrained();
             $table->string('numFactura')->nullable();
             $table->string('Codigo_del_prestador_de_servicios_de_salud')->nullable();
             $table->string('Tipo_de_identificacion_del_usuario')->nullable();

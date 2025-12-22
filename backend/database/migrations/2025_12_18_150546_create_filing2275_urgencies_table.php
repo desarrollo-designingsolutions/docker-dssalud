@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('filing_2275_urgencies', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
-            $table->foreignUuid('rip_invoice_user_id')->constrained();
             $table->string('codPrestador')->nullable();
             $table->string('fechaInicioAtencion')->nullable();
             $table->string('causaMotivoAtencion')->nullable();
