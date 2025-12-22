@@ -8,7 +8,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class RipsFinalidadConsultaVersion2 extends Model
+class Filing2275Medicine extends Model
 {
     use Cacheable, HasFactory, HasUuids, SoftDeletes;
+
+    protected $guarded = [];
+
+    public function service()
+    {
+        return $this->morphOne(Service::class, 'serviceable');
+    }
 }

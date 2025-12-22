@@ -11,25 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('other_services', function (Blueprint $table) {
+        Schema::create('filing_2275_other_services', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
+            $table->foreignUuid('rip_invoice_user_id')->constrained();
+            $table->string('codPrestador')->nullable();
             $table->string('numAutorizacion')->nullable();
             $table->string('idMIPRES')->nullable();
             $table->string('fechaSuministroTecnologia')->nullable();
-            $table->foreignUuid('tipoOS_id')->nullable()->constrained('tipo_otros_servicios');
+            $table->string('tipoOS')->nullable();
             $table->string('codTecnologiaSalud')->nullable();
             $table->string('nomTecnologiaSalud')->nullable();
             $table->string('cantidadOS')->nullable();
-            $table->string('vrUnitOS')->nullable();
-            $table->string('valorPagoModerador')->nullable();
-            $table->string('vrServicio')->nullable();
-            $table->foreignUuid('conceptoRecaudo_id')->nullable()->constrained('concepto_recaudos');
-
-            $table->foreignUuid('tipoDocumentoIdentificacion_id')->nullable()->constrained('tipo_id_pisis');
+            $table->string('tipoDocumentoIdentificacion')->nullable();
             $table->string('numDocumentoIdentificacion')->nullable();
-            $table->string('codPrestador')->nullable();
+            $table->string('vrUnitOS')->nullable();
+            $table->string('vrServicio')->nullable();
+            $table->string('conceptoRecaudo')->nullable();
+            $table->string('valorPagoModerador')->nullable();
             $table->string('numFEVPagoModerador')->nullable();
+            $table->integer('consecutivo')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
@@ -41,6 +42,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('other_services');
+        Schema::dropIfExists('filing_2275_other_services');
     }
 };

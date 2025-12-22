@@ -7,7 +7,14 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Umm extends Model
+class Filing2275Hospitalization extends Model
 {
     use Cacheable, HasFactory, HasUuids;
+
+    protected $guarded = [];
+
+    public function service()
+    {
+        return $this->morphOne(Service::class, 'serviceable');
+    }
 }

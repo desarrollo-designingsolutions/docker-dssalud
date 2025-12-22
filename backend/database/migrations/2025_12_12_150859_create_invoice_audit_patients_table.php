@@ -11,8 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('contracts', function (Blueprint $table) {
-            $table->foreignUuid('third_id')->constrained();
+        Schema::create('invoice_audit_patients', function (Blueprint $table) {
+            $table->id();
+            $table->foreignUuid('invoice_audit_id')->constrained();
+            $table->foreignUuid('patient_id')->constrained();
+            $table->timestamps();
         });
     }
 
@@ -21,8 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('contracts', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('third_id');
-        });
+        Schema::dropIfExists('invoice_audit_patients');
     }
 };

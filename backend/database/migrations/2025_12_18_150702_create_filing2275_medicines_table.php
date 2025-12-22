@@ -11,32 +11,35 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('medicines', function (Blueprint $table) {
+        Schema::create('filing_2275_medicines', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
+            $table->foreignUuid('rip_invoice_user_id')->constrained();
+            $table->string('codPrestador')->nullable();
             $table->string('numAutorizacion')->nullable();
             $table->string('idMIPRES')->nullable();
             $table->string('fechaDispensAdmon')->nullable();
-            $table->foreignUuid('codDiagnosticoPrincipal_id')->nullable()->constrained('cie10s');
-            $table->foreignUuid('codDiagnosticoRelacionado_id')->nullable()->constrained('cie10s');
-            $table->foreignUuid('tipoMedicamento_id')->nullable()->constrained('tipo_medicamento_pos_version2s');
+            $table->string('codDiagnosticoPrincipal')->nullable();
+            $table->string('codDiagnosticoRelacionado')->nullable();
+            $table->string('tipoMedicamento')->nullable();
+            $table->string('codTecnologiaSaludable_type')->nullable();
+            $table->string('codTecnologiaSaludable_id')->nullable();
             $table->string('codTecnologiaSalud')->nullable();
             $table->string('nomTecnologiaSalud')->nullable();
             $table->string('concentracionMedicamento')->nullable();
-            $table->foreignUuid('unidadMedida_id')->nullable()->constrained('umms');
+            $table->string('unidadMedida')->nullable();
             $table->string('formaFarmaceutica')->nullable();
             $table->string('unidadMinDispensa')->nullable();
             $table->string('cantidadMedicamento')->nullable();
             $table->string('diasTratamiento')->nullable();
-            $table->string('vrUnitMedicamento')->nullable();
-            $table->string('valorPagoModerador')->nullable();
-            $table->string('vrServicio')->nullable();
-            $table->foreignUuid('conceptoRecaudo_id')->nullable()->constrained('concepto_recaudos');
-
-            $table->foreignUuid('tipoDocumentoIdentificacion_id')->nullable()->constrained('tipo_id_pisis');
+            $table->string('tipoDocumentoIdentificacion')->nullable();
             $table->string('numDocumentoIdentificacion')->nullable();
-            $table->string('codPrestador')->nullable();
+            $table->string('vrUnitMedicamento')->nullable();
+            $table->string('vrServicio')->nullable();
+            $table->string('conceptoRecaudo')->nullable();
+            $table->string('valorPagoModerador')->nullable();
             $table->string('numFEVPagoModerador')->nullable();
+            $table->integer('consecutivo')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
@@ -48,6 +51,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('medicines');
+        Schema::dropIfExists('filing_2275_medicines');
     }
 };
