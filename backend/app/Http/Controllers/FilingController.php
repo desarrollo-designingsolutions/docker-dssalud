@@ -572,7 +572,7 @@ class FilingController extends Controller
     public function orquestadorCargueMasiva($post)
     {
         $this->startBenchmark('123');
-        $pathJsons = $this->cargueInvoiceAudit($post);
+        return $this->cargueInvoiceAudit($post);
         $this->endBenchmark('123');
     }
 
@@ -624,7 +624,7 @@ class FilingController extends Controller
             $invoice = openFileJson($data['path_json']);
             $company_id = $post['company_id'];
 
-            
+
             $dataPatients = [];
             $dataServices = [];
             foreach ($invoice['usuarios'] as $user) {
@@ -668,17 +668,17 @@ class FilingController extends Controller
             $dataServicesDataBase = [];
             foreach ($data['services'] as $key => $service) {
                 foreach ($service as $k => $value) {
-                    
+
                     // necesito comparar $key con el enum TypeServiceEnum para saber a que tipo de servicio corresponde
                     // Pero debo buscar por el dato de elementJson, si coincide que me de el valor del enum
                     $typeService = TypeServiceEnum::fromElementJson($key);
-                    
+
                     //si el tipo de servicio es procedimientos, guardar en la tabla procedures
                     if ($typeService === TypeServiceEnum::SERVICE_TYPE_002) {
 
-                        
+
                     }
-                    
+
 
                     // esta es la parte de los servicios de procedimientos, de querer guardar otros servicios se debe tener mas datos para probar
                     $dataServicesDataBase[] = [
@@ -699,7 +699,7 @@ class FilingController extends Controller
                     ];
                 }
                 $chunkData = array_chunk($dataServicesDataBase, 5);
-    
+
                 foreach ($chunkData as $chunk) {
                     Service::insert($chunk);
                 }
