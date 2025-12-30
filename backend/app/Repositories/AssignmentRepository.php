@@ -202,42 +202,53 @@ class AssignmentRepository extends BaseRepository
 
     public function paginatePatient($request = [])
     {
-
-        $cacheKey = $this->cacheService->generateKey("{$this->model->getTable()}_paginatePatient", $request, 'string');
+        $cacheKey = $this->cacheService->generateKey(
+            "{$this->model->getTable()}_paginatePatient",
+            $request,
+            'string'
+        );
 
         return $this->cacheService->remember($cacheKey, function () use ($request) {
-            $query = QueryBuilder::for(Patient::query())
+
+            return QueryBuilder::for(Patient::query())
                 ->withCount(['glosas as count_glosas'])
                 ->withSum('services as value_glosa', 'value_glosa')
                 ->withSum('services as value_approved', 'value_approved')
                 ->withSum('services as total_value', 'total_value')
+
                 ->allowedFilters([
                     AllowedFilter::callback('inputGeneral', function ($query, $value) {
                         $query->where(function ($subQuery) use ($value) {
-                            $subQuery->orWhereRaw("CONCAT(patients.first_name, ' ', patients.second_name, ' ', patients.first_surname, ' ', patients.second_surname) LIKE ?", ["%{$value}%"]);
-
-                            $subQuery->orWhere('identification_number', 'like', "%$value%");
-                            $subQuery->orWhere('gender', 'like', "%$value%");
-                            $subQuery->orWhere('total_value', 'like', "%$value%");
+                            $subQuery->orWhereRaw(
+                                "CONCAT(patients.first_name, ' ', patients.second_name, ' ', patients.first_surname, ' ', patients.second_surname) LIKE ?",
+                                ["%{$value}%"]
+                            )
+                                ->orWhere('identification_number', 'like', "%{$value}%")
+                                ->orWhere('gender', 'like', "%{$value}%");
                         });
                     }),
                 ])
+
                 ->allowedSorts([
-                    AllowedSort::custom('full_name', new DynamicConcatSort("first_name, ' ', second_name, ' ', first_surname, ' ', second_surname")),
+                    AllowedSort::custom(
+                        'full_name',
+                        new DynamicConcatSort("first_name, ' ', second_name, ' ', first_surname, ' ', second_surname")
+                    ),
                     'identification_number',
                     'gender',
                     'value_glosa',
                     'value_approved',
                     'total_value',
-                ])->where(function ($query) use ($request) {
+                ])
 
-                    if (!empty($request['invoice_audit_id'])) {
-                        $query->where('invoice_audit_id', $request['invoice_audit_id']);
-                    }
+                // 🔥 FILTRO CORRECTO USANDO LA TABLA PIVOTE
+                ->when(!empty($request['invoice_audit_id']), function ($query) use ($request) {
+                    $query->whereHas('invoicePatients', function ($q) use ($request) {
+                        $q->where('invoice_audits.id', $request['invoice_audit_id']);
+                    });
                 })
-                ->paginate(request()->perPage ?? Constants::ITEMS_PER_PAGE);
 
-            return $query;
+                ->paginate(request()->perPage ?? Constants::ITEMS_PER_PAGE);
         }, Constants::REDIS_TTL);
     }
 

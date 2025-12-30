@@ -12,6 +12,8 @@ class Filing2275OtherService extends Model
 {
     use Cacheable, HasFactory, HasUuids, SoftDeletes;
 
+    protected $table = 'filing_2275_other_services';
+
     protected $guarded = [];
 
     public function service()

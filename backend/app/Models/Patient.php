@@ -14,9 +14,21 @@ class Patient extends Model
 {
     use HasFactory, HasUuids, Searchable, SoftDeletes;
 
+    protected $fillable = [
+        'id',
+        'company_id',
+        'type_identification',
+        'identification_number',
+        'first_name',
+        'second_name',
+        'first_surname',
+        'second_surname',
+        'gender',
+    ];
+
     public function getFullNameAttribute()
     {
-        return $this->first_name.' '.$this->second_name.' '.$this->first_surname.' '.$this->second_surname;
+        return $this->first_name . ' ' . $this->second_name . ' ' . $this->first_surname . ' ' . $this->second_surname;
     }
 
     public function invoice_audit(): BelongsTo
@@ -44,18 +56,29 @@ class Patient extends Model
 
     public function assignmentStatusFor($request): string
     {
-        $hasPending = $this->invoice_audit
-            ->assignment()
-            ->whereNot('status', StatusAssignmentEnum::ASSIGNMENT_EST_003->value)
-            ->where(function ($query) use ($request) {
-                if (! empty($request['user_id'])) {
+        $hasPending = $this->invoicePatients()
+            ->whereHas('assignment', function ($query) use ($request) {
+                $query->whereNot(
+                    'status',
+                    StatusAssignmentEnum::ASSIGNMENT_EST_003->value
+                );
+
+                if (!empty($request['user_id'])) {
                     $query->where('user_id', $request['user_id']);
                 }
             })
-            ->exists(); // consulta eficiente, no carga todos los registros :contentReference[oaicite:1]{index=1}
+            ->exists();
 
-        return $hasPending
-            ? 'pending' // 'Pendiente'
-            : 'finished'; // 'Finalizado'
+        return $hasPending ? 'pending' : 'finished';
+    }
+
+    public function invoicePatients()
+    {
+        return $this->belongsToMany(
+            InvoiceAudit::class,
+            'invoice_audit_patients',
+            'patient_id',
+            'invoice_audit_id'
+        );
     }
 }

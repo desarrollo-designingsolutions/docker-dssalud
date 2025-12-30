@@ -12,6 +12,8 @@ class Filing2275Medicine extends Model
 {
     use Cacheable, HasFactory, HasUuids, SoftDeletes;
 
+    protected $table = 'filing_2275_medicines';
+
     protected $guarded = [];
 
     public function service()

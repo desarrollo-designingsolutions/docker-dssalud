@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Patient;
+use Illuminate\Support\Str;
 
 class PatientRepository extends BaseRepository
 {
@@ -23,7 +24,7 @@ class PatientRepository extends BaseRepository
             })
             ->where(function ($query) use ($request) {
                 if (isset($request['searchQueryInfinite']) && ! empty($request['searchQueryInfinite'])) {
-                    $query->orWhere('name', 'like', '%'.$request['searchQueryInfinite'].'%');
+                    $query->orWhere('name', 'like', '%' . $request['searchQueryInfinite'] . '%');
                 }
             });
 
@@ -85,5 +86,29 @@ class PatientRepository extends BaseRepository
         });
 
         return $data;
+    }
+
+    public function getOrCreatePatient(array $user, string $company_id): Patient
+    {
+        $patient = Patient::where('company_id', $company_id)
+            ->where('type_identification', $user['Tipo_de_identificacion_del_usuario'] ?? '')
+            ->where('identification_number', $user['numDocumentoIdentificacion'] ?? '')
+            ->first();
+
+        if ($patient) {
+            return $patient;
+        }
+
+        return Patient::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $company_id,
+            'type_identification' => $user['Tipo_de_identificacion_del_usuario'] ?? '',
+            'identification_number' => $user['numDocumentoIdentificacion'] ?? '',
+            'first_name' => $user['Primer_nombre_del_usuario'] ?? '',
+            'second_name' => $user['Segundo_nombre_del_usuario'] ?? '',
+            'first_surname' => $user['Primer_apellido_del_usuario'] ?? '',
+            'second_surname' => $user['Segundo_apellido_del_usuario'] ?? '',
+            'gender' => $user['Sexo'] ?? '',
+        ]);
     }
 }

@@ -11,6 +11,8 @@ class Filing2275Hospitalization extends Model
 {
     use Cacheable, HasFactory, HasUuids;
 
+    protected $table = 'filing_2275_hospitalizations';
+
     protected $guarded = [];
 
     public function service()

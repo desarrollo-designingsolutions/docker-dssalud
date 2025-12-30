@@ -12,6 +12,8 @@ class Filing2275Urgency extends Model
 {
     use Cacheable, HasFactory, HasUuids, SoftDeletes;
 
+    protected $table = 'filing_2275_urgencies';
+
     protected $guarded = [];
 
     public function service()

@@ -18,14 +18,18 @@ use App\Jobs\File\ProcessMassUpload;
 use App\Jobs\Filing\ProcessFilingValidationTxt;
 use App\Jobs\Filing\ProcessFilingValidationZip;
 use App\Jobs\Filing\ProcessMassXmlUpload;
+use App\Jobs\ProcessRedisBatch;
+use App\Mappers\ServiceFilingMapper;
 use App\Models\InvoiceAudit;
 use App\Models\Patient;
 use App\Models\Service;
 use App\Notifications\BellNotification;
 use App\Repositories\FilingInvoiceRepository;
 use App\Repositories\FilingRepository;
+use App\Repositories\PatientRepository;
 use App\Repositories\SupportTypeRepository;
 use App\Repositories\UserRepository;
+use App\Services\CacheService;
 use App\Traits\HttpResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -33,6 +37,7 @@ use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
 use App\Traits\ImportHelper;
+use Illuminate\Support\Facades\Redis;
 
 class FilingController extends Controller
 {
@@ -43,8 +48,8 @@ class FilingController extends Controller
         protected FilingRepository $filingRepository,
         protected FilingInvoiceRepository $filingInvoiceRepository,
         protected SupportTypeRepository $supportTypeRepository,
-    ) {
-    }
+        protected PatientRepository $patientRepository,
+    ) {}
 
     public function paginate(Request $request)
     {
@@ -540,18 +545,30 @@ class FilingController extends Controller
         });
     }
 
-    public function changeStatusFilingInvoicePreRadicated(Request $request)
+    public function changeStatusFilingInvoicePreRadicated(Request $request, CacheService $cacheService)
     {
-        return $this->runTransaction(function () use ($request) {
+        return $this->runTransaction(function () use ($request, $cacheService) {
 
             $post = $request->all();
-
-            return $this->orquestadorCargueMasiva($post);
 
             $data = $this->filingRepository->changeStatusFilingInvoicePreRadicated($post['filing_id']);
             $this->filingRepository->changeState($post['filing_id'], StatusFilingEnum::FILING_EST_009, 'status');
 
+            $invoiceAuditIds = $this->orquestadorCargueMasiva($post);
+
             FilingRowUpdatedNow::dispatch($post['filing_id']);
+
+            // ===============================
+            // 🔹 REDIS – invoice_audit
+            // ===============================
+
+            $companyId = $post['company_id'];
+
+            ProcessRedisBatch::dispatch(
+                $companyId,
+                InvoiceAudit::class,
+                InvoiceAudit::whereIn('id', $invoiceAuditIds)->get()
+            );
 
             // Enviar notificación
             $user = $this->userRepository->find($post['user_id']);
@@ -572,8 +589,9 @@ class FilingController extends Controller
     public function orquestadorCargueMasiva($post)
     {
         $this->startBenchmark('123');
-        return $this->cargueInvoiceAudit($post);
+        $invoiceAuditIds = $this->cargueInvoiceAudit($post);
         $this->endBenchmark('123');
+        return $invoiceAuditIds;
     }
 
     public function cargueInvoiceAudit($post)
@@ -583,6 +601,7 @@ class FilingController extends Controller
         $chunkData = array_chunk($filing->filingInvoiceRadicateds->toArray(), 5);
         $dataMasive = [];
         $dataMasiveJson = [];
+        $createdInvoiceAuditIds = [];
 
         foreach ($chunkData as $chunk) {
             foreach ($chunk as $key => $filingInvoice) {
@@ -610,102 +629,102 @@ class FilingController extends Controller
                 ];
             }
             InvoiceAudit::insert($dataMasive);
-            $data = $this->carguePatients($post, $dataMasiveJson);
+            $data = $this->carguePatients($post, $dataMasiveJson, $filing->type);
+            $createdInvoiceAuditIds = array_merge(
+                $createdInvoiceAuditIds,
+                array_column($dataMasive, 'id')
+            );
             $dataMasive = [];
             $dataMasiveJson = [];
         }
 
-        return $dataMasiveJson;
+        return $createdInvoiceAuditIds;
     }
 
-    public function carguePatients($post, $dataMasiveJson)
+    public function carguePatients($post, $dataMasiveJson, $filingType)
     {
         foreach ($dataMasiveJson as $data) {
-            $invoice = openFileJson($data['path_json']);
+
+            $invoiceJson = openFileJson($data['path_json']);
             $company_id = $post['company_id'];
 
+            $invoiceAudit = InvoiceAudit::findOrFail($data['id']);
 
-            $dataPatients = [];
-            $dataServices = [];
-            foreach ($invoice['usuarios'] as $user) {
-                $uuid = (string) Str::uuid();
-                $dataServices[] = [
-                    'company_id' => $company_id,
-                    'invoice_audit_id' => $data['id'],
-                    'patient_id' => $uuid,
-                    'services' => $user['servicios'],
-                ];
-                $dataPatients[] = [
-                    'id' => $uuid,
-                    'company_id' => $company_id,
-                    'invoice_audit_id' => $data['id'],
-                    'type_identification' => $user['Tipo_de_identificacion_del_usuario'] ?? '',
-                    'identification_number' => $user['numDocumentoIdentificacion'] ?? '',
-                    'first_name' => $user['Primer_nombre_del_usuario'] ?? '',
-                    'second_name' => $user['Segundo_nombre_del_usuario'] ?? '',
-                    'first_surname' => $user['Primer_apellido_del_usuario'] ?? '',
-                    'second_surname' => $user['Segundo_apellido_del_usuario'] ?? '',
-                    'gender' => $user['Sexo'] ?? '',
-                ];
-            }
-            $chunkData = array_chunk($dataPatients, 5);
-            $chunkDataServices = array_chunk($dataServices, 5);
+            foreach ($invoiceJson['usuarios'] as $user) {
 
-            foreach ($chunkData as $key => $chunk) {
-                Patient::insert($chunk);
-                $data = $this->cargueServices($chunkDataServices[$key]);
+                // 1️⃣ Obtener o crear paciente
+                $patient = $this->patientRepository->getOrCreatePatient($user, $company_id);
+
+                // 2️⃣ Sync invoice_audit <-> patient
+                $invoiceAudit->invoicePatients()->syncWithoutDetaching([
+                    $patient->id
+                ]);
+
+                // 3️⃣ Cargar servicios con el patient_id correcto
+                $this->cargueServices([
+                    [
+                        'company_id' => $company_id,
+                        'invoice_audit_id' => $invoiceAudit->id,
+                        'patient_id' => $patient->id,
+                        'services' => $user['servicios'],
+                        'filing_type' => $filingType,
+                    ]
+                ]);
             }
         }
 
-        return false;
+        return true;
     }
 
     public function cargueServices($dataServices)
     {
         foreach ($dataServices as $data) {
-            $company_id = $data['company_id'];
 
-            $dataServicesDataBase = [];
-            foreach ($data['services'] as $key => $service) {
-                foreach ($service as $k => $value) {
+            $filingType = $data['filing_type'];
+            $serviceRows = [];
 
-                    // necesito comparar $key con el enum TypeServiceEnum para saber a que tipo de servicio corresponde
-                    // Pero debo buscar por el dato de elementJson, si coincide que me de el valor del enum
-                    $typeService = TypeServiceEnum::fromElementJson($key);
+            foreach ($data['services'] as $key => $group) {
 
-                    //si el tipo de servicio es procedimientos, guardar en la tabla procedures
-                    if ($typeService === TypeServiceEnum::SERVICE_TYPE_002) {
+                $serviceType = TypeServiceEnum::fromElementJson($key);
 
+                foreach ($group as $jsonService) {
 
-                    }
-
-
-                    // esta es la parte de los servicios de procedimientos, de querer guardar otros servicios se debe tener mas datos para probar
-                    $dataServicesDataBase[] = [
-                        'id' => (string) Str::uuid(),
-                        'company_id' => $company_id,
+                    $context = [
+                        'company_id' => $data['company_id'],
                         'invoice_audit_id' => $data['invoice_audit_id'],
                         'patient_id' => $data['patient_id'],
-                        'detail_code' => $value['Codigo_del_procedimiento'] ?? null,
-                        'type' => $typeService->value,
-                        'serviceable_type' => $typeService->model(),
-                        'serviceable_id' => '',
-                        'description' => $typeService->value,
-                        'quantity' => null,
-                        'unit_value' => null,
-                        'total_value' => $value['vrServicio'] ?? 0,
-                        'value_glosa' => null,
-                        'value_approved' => null,
+                        'invoice_number' => $data['invoice_number'] ?? null,
                     ];
-                }
-                $chunkData = array_chunk($dataServicesDataBase, 5);
 
-                foreach ($chunkData as $chunk) {
-                    Service::insert($chunk);
+                    // 1️⃣ Resolver modelo y payload
+                    $mapped = ServiceFilingMapper::map(
+                        $filingType,
+                        $serviceType,
+                        $jsonService,
+                        $context
+                    );
+
+                    // 2️⃣ Insertar en tabla específica
+                    $model = $mapped['model'];
+                    $model::insert([$mapped['payload']]);
+
+                    // 3️⃣ Preparar service
+                    $serviceRows[] = ServiceFilingMapper::mapService(
+                        $serviceType,
+                        $mapped['payload']['id'],
+                        $model,
+                        $context,
+                        $jsonService
+                    );
                 }
+            }
+
+            // 4️⃣ INSERT MASIVO EN SERVICES
+            foreach (array_chunk($serviceRows, 5) as $chunk) {
+                Service::insert($chunk);
             }
         }
 
-        return false;
+        return true;
     }
 }

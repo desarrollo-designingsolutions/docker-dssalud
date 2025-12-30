@@ -92,4 +92,9 @@ class InvoiceAudit extends Model
     {
         return $this->auditoryFinalReport()->sum('valor_glosa');
     }
+
+    public function invoicePatients()
+    {
+        return $this->belongsToMany(Patient::class, 'invoice_audit_patients', 'invoice_audit_id', 'patient_id');
+    }
 }
