@@ -52,7 +52,7 @@ class InternalFileValidator
         }
 
         $handle = fopen($filePath, 'r');
-        if (! $handle) {
+        if (!$handle) {
             ErrorCollector::addError(
                 $keyErrorRedis,
                 'ZIP_ERROR_010',
@@ -70,7 +70,6 @@ class InternalFileValidator
 
         $row = 1;
         $isValid = true;
-
         while (($line = fgetcsv($handle, 0, ',')) !== false) {
             $actualColumns = count($line);
             if ($actualColumns !== $expected) {

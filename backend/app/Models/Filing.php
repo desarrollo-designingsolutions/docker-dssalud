@@ -18,6 +18,8 @@ class Filing extends Model
 {
     use Cacheable, HasUuids, Searchable, SoftDeletes;
 
+    protected $guarded = [];
+
     protected $casts = [
         'type' => TypeFilingEnum::class,
         'status' => StatusFilingEnum::class,

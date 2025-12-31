@@ -101,12 +101,12 @@ class PermissionSeeder extends Seeder
                 'description' => 'Visualizar Menu Contratos',
                 'menu_id' => 14,
             ],
-            [
-                'id' => 15,
-                'name' => 'saludIA.list',
-                'description' => 'Visualizar Menu Salud IA',
-                'menu_id' => 15,
-            ],
+            // [
+            //     'id' => 15,
+            //     'name' => 'saludIA.list',
+            //     'description' => 'Visualizar Menu Salud IA',
+            //     'menu_id' => 15,
+            // ],
             [
                 'id' => 16,
                 'name' => 'providerInvoices.list',

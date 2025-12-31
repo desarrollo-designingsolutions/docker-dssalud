@@ -11,6 +11,8 @@ use App\Events\FilingRowUpdatedNow;
 use App\Exports\Filing\FilingExcelErrorsValidationExport;
 use App\Exports\Filing\FilingInvoiceExcelErrorsValidationExport;
 use App\Helpers\Constants;
+use App\Helpers\Common\ErrorCollector;
+use App\Events\ImportProgressEvent;
 use App\Http\Requests\Filing\FilingUploadJsonRequest;
 use App\Http\Requests\Filing\FilingUploadZipRequest;
 use App\Http\Resources\Filing\FilingPaginateResource;
@@ -18,21 +20,28 @@ use App\Jobs\File\ProcessMassUpload;
 use App\Jobs\Filing\ProcessFilingValidationTxt;
 use App\Jobs\Filing\ProcessFilingValidationZip;
 use App\Jobs\Filing\ProcessMassXmlUpload;
+use App\Jobs\Filing\SaveErrorsJob;
+use App\Jobs\Filing\ValidateZipJob;
 use App\Models\InvoiceAudit;
 use App\Models\Patient;
 use App\Models\Service;
+use App\Models\ProcessBatch;
 use App\Notifications\BellNotification;
 use App\Repositories\FilingInvoiceRepository;
 use App\Repositories\FilingRepository;
 use App\Repositories\SupportTypeRepository;
 use App\Repositories\UserRepository;
 use App\Traits\HttpResponseTrait;
+use App\Services\ProcessBatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use App\Traits\ImportHelper;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Bus;
 
 class FilingController extends Controller
 {
@@ -74,6 +83,87 @@ class FilingController extends Controller
     }
 
     public function uploadZip(FilingUploadZipRequest $request)
+    {
+        return $this->runTransaction(function () use ($request) {
+            $company_id = $request->input('company_id');
+            $user_id = $request->input('user_id');
+            $uploadedFile = $request->file('file');
+            $batchId = Str::uuid();
+
+            $fileNameWithExtension = strtolower($uploadedFile->getClientOriginalName());
+            $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
+            $fileExtension = strtolower($uploadedFile->getClientOriginalExtension());
+            $uniqueFileName = $fileName . '_' . time() . '.' . $fileExtension;
+            $tempSubfolder = 'temp/filings/zip/' . $batchId;
+            $filePath = $uploadedFile->storeAs($tempSubfolder, $uniqueFileName, Constants::DISK_FILES);
+            $fullPath = storage_path('app/public/' . $filePath);
+
+            $metadata = [
+                'file_name' => $uniqueFileName,
+                'file_size' => $uploadedFile->getSize(),
+                'path_zip' => $filePath,
+                'started_at' => now()->toDateTimeString(),
+                'total_rows' => 0,
+                'total_sheets' => 1,
+                'current_sheet' => 1,
+                'user_id' => $user_id,
+                'company_id' => $company_id,
+            ];
+            $redis = Redis::connection('redis_6380');
+            $redis->hmset("batch:{$batchId}:metadata", $metadata);
+            $redis->hmset("rip_batch:{$batchId}", [
+                'status' => 'uploaded',
+                'file_path' => $filePath,
+                'user_id' => $user_id,
+                'company_id' => $company_id,
+                'process_batch_id' => $batchId,
+                'type' => StatusFilingEnum::FILING_EST_001->value,
+            ]);
+            $redis->expire("rip_batch:{$batchId}", 86400);
+
+            // Log::info("ZIP uploaded for batch {$batchId}: Path {$filePath}");
+
+            ProcessBatch::create([
+                'id' => $batchId,
+                'batch_id' => $batchId,
+                'company_id' => $company_id,
+                'user_id' => $user_id,
+                'total_records' => 0,
+                'error_count' => 0,
+                'status' => 'active',
+                'metadata' => json_encode($metadata),
+            ]);
+
+            try {
+                // Seleccionar una cola disponible
+                $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
+
+                Bus::chain([
+                    new ValidateZipJob($fullPath, $batchId, $user_id, $company_id, $selectedQueue),
+                    new SaveErrorsJob($batchId, $selectedQueue),
+                ])
+                    ->catch(function (\Throwable $e) use ($batchId) {
+                        Log::error("Validation failed for batch {$batchId}: {$e->getMessage()}");
+                        ErrorCollector::saveErrorsToDatabase($batchId, 'failed');
+                        event(new ImportProgressEvent($batchId, 0, 'Error en validación', count(ErrorCollector::getErrors($batchId)), 'failed', 'error'));
+                    })
+                    ->onQueue($selectedQueue)
+                    ->dispatch();
+            } catch (\Exception $e) {
+                Log::error("No se pudo seleccionar una cola disponible: " . $e->getMessage());
+                // Manejar el error (ej: reintentar o notificar al usuario)
+            }
+
+            return [
+                'code' => 200,
+                'message' => 'Archivo ZIP subido y encolado para validación.',
+                'batch_id' => $batchId,
+                'status' => 'success',
+            ];
+        });
+    }
+
+    public function uploadZipRespaldo(FilingUploadZipRequest $request)
     {
         return $this->runTransaction(function () use ($request) {
 
@@ -181,8 +271,6 @@ class FilingController extends Controller
 
             $filing = $this->filingRepository->find($filing_id);
 
-            $validationTxt = json_decode($filing->validationTxt, 1);
-
             if ($filing->type == TypeFilingEnum::FILING_TYPE_001) {
 
                 $filing = $this->filingRepository->store([
@@ -191,7 +279,7 @@ class FilingController extends Controller
                     'contract_id' => $contract_id,
                 ]);
 
-                $buildDataFinal = openFileJson($filing->path_json);
+                $buildDataFinal = $filing->path_json ? openFileJson($filing->path_json) : [];
 
                 // Sumatoria de los valores de los servicios
                 $sumVrServicios = $filing->sumVr;
@@ -224,6 +312,8 @@ class FilingController extends Controller
                 $filing->sumVr = $sumVrServicios;
                 $filing->save();
             } elseif ($filing->type == TypeFilingEnum::FILING_TYPE_002) {
+                $validationTxt = json_decode($filing->validationTxt, 1);
+
                 $jsonSuccessfullInvoices = $validationTxt['jsonSuccessfullInvoices'];
                 $errorMessages = collect($validationTxt['errorMessages']);
 
@@ -373,6 +463,63 @@ class FilingController extends Controller
     }
 
     public function uploadJson(FilingUploadJsonRequest $request)
+    {
+        return $this->runTransaction(function () use ($request) {
+
+            // Preparar datos iniciales
+            $id = $request->input('id', null);
+            $company_id = $request->input('company_id');
+            $user_id = $request->input('user_id');
+
+            $files = $request->file('files');
+            $files = is_array($files) ? $files : [$files];
+            $totalFiles = count($files);
+
+            // Guardar registro inicial
+            $filing = $this->filingRepository->store([
+                'id' => $id,
+                'company_id' => $company_id,
+                'user_id' => $user_id,
+                'type' => TypeFilingEnum::FILING_TYPE_002,
+                'status' => StatusFilingEnum::FILING_EST_001,
+            ]);
+
+            $processedFiles = 0;
+
+            // Procesar cada archivo
+            $lastIndex = count($files) - 1;
+            foreach ($files as $index => $file) {
+                try {
+                    // Almacenar temporalmente y obtener info
+                    $tempPath = $file->store('temp', Constants::DISK_FILES);
+                    $originalName = $file->getClientOriginalName();
+
+                    // Leer JSON
+                    $jsonData = openFileJson($tempPath);
+
+                    if (empty($jsonData)) {
+                        continue; // Saltar si el archivo está vacío
+                    }
+
+                    // Actualizar progreso por archivo procesado
+                    $processedFiles++;
+                    $progress = ($processedFiles / $totalFiles) * 100;
+                    $lastFile = $lastIndex == $index;
+
+                    ProcessFilingValidationTxt::dispatch($filing->id, $jsonData, $lastFile);
+                } catch (\Exception $e) {
+                    // Registrar error y continuar
+                    \Log::error("Error procesando archivo {$originalName}: " . $e->getMessage());
+
+                    continue;
+                }
+            }
+
+            return $filing;
+        });
+    }
+
+    public function uploadJsonRespaldo(FilingUploadJsonRequest $request)
     {
         return $this->runTransaction(function () use ($request) {
 
@@ -624,7 +771,7 @@ class FilingController extends Controller
             $invoice = openFileJson($data['path_json']);
             $company_id = $post['company_id'];
 
-            
+
             $dataPatients = [];
             $dataServices = [];
             foreach ($invoice['usuarios'] as $user) {
@@ -668,17 +815,17 @@ class FilingController extends Controller
             $dataServicesDataBase = [];
             foreach ($data['services'] as $key => $service) {
                 foreach ($service as $k => $value) {
-                    
+
                     // necesito comparar $key con el enum TypeServiceEnum para saber a que tipo de servicio corresponde
                     // Pero debo buscar por el dato de elementJson, si coincide que me de el valor del enum
                     $typeService = TypeServiceEnum::fromElementJson($key);
-                    
+
                     //si el tipo de servicio es procedimientos, guardar en la tabla procedures
                     if ($typeService === TypeServiceEnum::SERVICE_TYPE_002) {
 
-                        
+
                     }
-                    
+
 
                     // esta es la parte de los servicios de procedimientos, de querer guardar otros servicios se debe tener mas datos para probar
                     $dataServicesDataBase[] = [
@@ -699,7 +846,7 @@ class FilingController extends Controller
                     ];
                 }
                 $chunkData = array_chunk($dataServicesDataBase, 5);
-    
+
                 foreach ($chunkData as $chunk) {
                     Service::insert($chunk);
                 }

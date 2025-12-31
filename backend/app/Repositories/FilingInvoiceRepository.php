@@ -261,6 +261,23 @@ class FilingInvoiceRepository extends BaseRepository
                                 $subQuery->orWhere('sumVr', 'like', "%$normalizedValue%");
                             });
 
+                            $query->orWhereHas('filing', function ($subQuery) use ($value) {
+
+                                $subQuery->orWhereHas('contract', function ($subQuery2) use ($value) {
+                                    $subQuery2->where('name', 'like', "%$value%");
+
+                                    $subQuery2->orWhereHas('third', function ($subQuery3) use ($value) {
+                                        $subQuery3->where('name', 'like', "%$value%");
+                                    });
+                                });
+
+                                QueryFilters::filterByText($subQuery, $value, 'type', [
+                                    TypeFilingEnum::FILING_TYPE_001->description() => TypeFilingEnum::FILING_TYPE_001,
+                                    TypeFilingEnum::FILING_TYPE_002->description() => TypeFilingEnum::FILING_TYPE_002,
+                                ]);
+                            });
+
+
                             QueryFilters::filterByText($query, $value, 'status', [
                                 StatusFilingInvoiceEnum::FILINGINVOICE_EST_001->description() => StatusFilingInvoiceEnum::FILINGINVOICE_EST_001,
                                 StatusFilingInvoiceEnum::FILINGINVOICE_EST_002->description() => StatusFilingInvoiceEnum::FILINGINVOICE_EST_002,

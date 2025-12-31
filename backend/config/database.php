@@ -147,7 +147,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
         ],
 
         'default' => [
@@ -172,19 +172,11 @@ return [
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_DB', '0'),
         ],
-        // 'redis_6380' => [
-        //     'host' => env('REDIS_HOST_6380', '127.0.0.1'),
-        //     'port' => env('REDIS_PORT_6380', '6379'),
-        //     'database' => env('REDIS_DB_6380', '0'),
-        //     'password' => env('REDIS_PASSWORD_6380', null),
-        // ],
         'redis_6380' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT_6380', '6380'),
-            'database' => env('REDIS_DB', '0'),
+            'host' => env('REDIS_HOST_6380', '127.0.0.1'),
+            'port' => env('REDIS_PORT_6380', '6379'),
+            'database' => env('REDIS_DB_6380', '0'),
+            'password' => env('REDIS_PASSWORD_6380', null),
         ],
 
     ],
