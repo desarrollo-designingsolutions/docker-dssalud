@@ -27,6 +27,8 @@ const optionsTable = {
     third_user_id: authenticationStore.user.id,
   },
   headers: [
+    { key: 'type_description', title: 'Tipo de radicación', sortable: false },
+    { key: 'contract_name', title: 'Contrato', sortable: false },
     { key: 'invoice_number', title: 'Número de factura' },
     { key: 'users_count', title: 'Cant. Usuarios' },
     { key: 'files_count', title: 'Soportes Cargados' },
@@ -34,11 +36,9 @@ const optionsTable = {
     { key: 'sumVr', title: 'Valor' },
     { key: "date", title: 'Fecha' },
     { key: "status", title: 'Estado' },
-    { key: 'type_radication', title: 'Tipo de radicación' },
-    { key: 'contract_number', title: 'N° Contrato' },
     { key: 'created_at', title: 'Fecha de radicación' },
     { key: 'updated_at', title: 'Fecha de actualización' },
-    { key: 'third_name', title: 'Tercero' },
+    { key: 'third_name', title: 'Tercero', sortable: false },
     { key: 'actions', title: 'Acciones', sortable: false },
   ],
   actions: {
