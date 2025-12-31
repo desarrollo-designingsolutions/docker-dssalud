@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\Cacheable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Filing2275Hospitalization extends Model
+{
+    use Cacheable, HasFactory, HasUuids;
+
+    protected $table = 'filing_2275_hospitalizations';
+
+    protected $guarded = [];
+
+    public function service()
+    {
+        return $this->morphOne(Service::class, 'serviceable');
+    }
+}
