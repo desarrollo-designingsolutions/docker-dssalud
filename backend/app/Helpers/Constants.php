@@ -32,4 +32,8 @@ class Constants
     public const KEY_NumDocumentoIdentificacion = 'numDocumentoIdentificacion';
 
     public const KEY_VrServicio = 'vrServicio';
+
+
+    public const AVAILABLE_QUEUES_TO_IMPORTS_PRUEBA = ['import_prueba_1','import_prueba_2', 'import_prueba_3'];
+
 }

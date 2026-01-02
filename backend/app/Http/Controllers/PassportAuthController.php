@@ -7,17 +7,22 @@ use App\Http\Requests\Authentication\PassportAuthLoginRequest;
 use App\Http\Requests\Authentication\PassportAuthPasswordResetLinkRequest;
 use App\Http\Requests\Authentication\PassportAuthSendResetLinkRequest;
 use App\Jobs\BrevoProcessSendEmail;
+use App\Jobs\Prueba\PruebaValidateStructureJob;
+use App\Models\ProcessBatch;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\MenuRepository;
 use App\Repositories\UserRepository;
 use App\Services\MailService;
+use App\Services\ProcessBatchService;
 use App\Traits\HttpResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PassportAuthController extends Controller
 {
@@ -193,7 +198,7 @@ class PassportAuthController extends Controller
             // Generar el enlace de restablecimiento
             $token = Password::getRepository()->create($user);
 
-            $action_url = env('SYSTEM_URL_FRONT').'ResetPassword/'.$token.'?email='.urlencode($request->input('email'));
+            $action_url = env('SYSTEM_URL_FRONT') . 'ResetPassword/' . $token . '?email=' . urlencode($request->input('email'));
 
             // Enviar el correo usando el job de Brevo
             BrevoProcessSendEmail::dispatch(
@@ -244,5 +249,72 @@ class PassportAuthController extends Controller
                 'message' => 'El token de restablecimiento es inválido o ha expirado.',
             ]));
         });
+    }
+
+
+
+
+    public function  prueba(Request $request)
+    {
+        $company_id = $request->input('company_id');
+        $user_id = $request->input('user_id');
+        $uploadedFile = $request->file('file');
+
+        // Generar batchId único
+        $batchId = (string) Str::uuid();
+
+
+        // Generar nombre único y ruta temporal (ya lo tenías así)
+        $fileNameWithExtension = strtolower($uploadedFile->getClientOriginalName());
+        $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
+        $fileExtension = strtolower($uploadedFile->getClientOriginalExtension());
+        $uniqueFileName = $fileName . '_' . time() . '.' . $fileExtension;
+        $tempSubfolder = 'temp/rips/' . $batchId;
+        $filePath = $uploadedFile->storeAs($tempSubfolder, $uniqueFileName, Constants::DISK_FILES);
+
+
+        // Metadata que vas a guardar en Redis (igual a lo que tenías)
+        $metadata = [
+            'file_name' => $uniqueFileName,
+            'file_size' => $uploadedFile->getSize(),
+            'started_at' => now()->toDateTimeString(),
+            'total_rows' => 0,
+            'total_sheets' => 1,
+            'current_sheet' => 1,
+            'user_id' => $user_id,
+            'company_id' => $company_id,
+        ];
+
+        // Conexión a Redis (mantener la tuya)
+        $redis = Redis::connection('redis_6380');
+        $redisKey = "batch:{$batchId}:metadata";
+        $redis->hmset($redisKey, $metadata);
+
+        // Crear registro en BD (tu modelo ProcessBatch)
+        ProcessBatch::create([
+            'id' => $batchId,
+            'batch_id' => $batchId,
+            'company_id' => $company_id,
+            'user_id' => $user_id,
+            'total_records' => 0,
+            'error_count' => 0,
+            'status' => 'active', // estado inicial
+            'metadata' => json_encode($metadata),
+        ]);
+
+
+        // Despachar job de validación de estructura (asíncrono)
+        $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_PRUEBA);
+
+
+        PruebaValidateStructureJob::dispatch($batchId, $selectedQueue);
+
+
+        return [
+            'code' => 200,
+            'message' => 'Archivo subido y encolado para validación de estructura.',
+            'batch_id' => $batchId,
+            'status' => 'success',
+        ];
     }
 }
