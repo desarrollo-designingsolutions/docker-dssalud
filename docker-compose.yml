@@ -25,9 +25,15 @@ services:
     volumes:
       - ./frontend/src:/var/www/html/src
       - ./frontend/public:/var/www/html/public
-    restart: always
+    restart: unless-stopped
     ports:
       - "${VUE_PORT}:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5173 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   mysql:
     image: mysql:8.0.1
@@ -105,7 +111,7 @@ services:
     networks:
       - project_network
     ports:
-      - "8080:8080"   # expone Reverb
+      - "8080:8080" # expone Reverb
     environment:
       - REVERB_APP_ID=${REVERB_APP_ID}
       - REVERB_APP_KEY=${REVERB_APP_KEY}
@@ -113,7 +119,7 @@ services:
       - REVERB_HOST=${REVERB_HOST}
       - REVERB_PORT=${REVERB_PORT}
       - REVERB_SCHEME=${REVERB_SCHEME}
-      
+
   supervisor_queues:
     build:
       context: .

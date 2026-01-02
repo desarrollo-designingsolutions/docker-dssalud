@@ -15,12 +15,16 @@ class FilingFinishProcessJob implements ShouldBroadcast
 
     public $filing;
 
+    public $batchId;
+
+
     /**
      * Create a new event instance.
      */
-    public function __construct($filingId)
+    public function __construct($filingId, $batchId)
     {
         $this->filing = Filing::find($filingId);
+        $this->batchId = $batchId;
     }
 
     /**
@@ -31,7 +35,7 @@ class FilingFinishProcessJob implements ShouldBroadcast
     public function broadcastOn()
     {
         // Define el canal que usará el evento para emitir
-        return new Channel("filing.{$this->filing->id}");
+        return new Channel("filing.{$this->batchId}");
     }
 
     public function broadcastAs()

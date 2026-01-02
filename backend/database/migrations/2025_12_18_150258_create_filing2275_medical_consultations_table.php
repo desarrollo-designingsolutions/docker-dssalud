@@ -1,0 +1,51 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('filing_2275_medical_consultations', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+
+            $table->string('codPrestador')->nullable();
+            $table->string('fechaInicioAtencion')->nullable();
+            $table->string('numAutorizacion')->nullable();
+            $table->string('codConsulta')->nullable();
+            $table->string('modalidadGrupoServicioTecSal')->nullable();
+            $table->string('grupoServicios')->nullable();
+            $table->string('codServicio')->nullable();
+            $table->string('finalidadTecnologiaSalud')->nullable();
+            $table->string('causaMotivoAtencion')->nullable();
+            $table->string('codDiagnosticoPrincipal')->nullable();
+            $table->string('codDiagnosticoRelacionado1')->nullable();
+            $table->string('codDiagnosticoRelacionado2')->nullable();
+            $table->string('codDiagnosticoRelacionado3')->nullable();
+            $table->string('tipoDiagnosticoPrincipal')->nullable();
+            $table->string('tipoDocumentoIdentificacion')->nullable();
+            $table->string('numDocumentoIdentificacion')->nullable();
+            $table->float('vrServicio')->nullable();
+            $table->string('conceptoRecaudo')->nullable();
+            $table->float('valorPagoModerador')->nullable();
+            $table->string('numFEVPagoModerador')->nullable();
+            $table->integer('consecutivo')->nullable();
+
+            $table->timestamps();
+            $table->softDeletes();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('filing_2275_medical_consultations');
+    }
+};

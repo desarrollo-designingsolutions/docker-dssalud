@@ -36,4 +36,6 @@ class Constants
 
     public const AVAILABLE_QUEUES_TO_IMPORTS_PRUEBA = ['import_prueba_1','import_prueba_2', 'import_prueba_3'];
 
+    // Lista de colas disponibles para importacion de FILING
+    public const AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP = ['import_filing_zip_1'];
 }

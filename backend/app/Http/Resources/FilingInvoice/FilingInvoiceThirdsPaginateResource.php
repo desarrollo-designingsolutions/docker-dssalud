@@ -34,7 +34,10 @@ class FilingInvoiceThirdsPaginateResource extends JsonResource
 
             'path_xml' => $this->path_xml,
 
-            'third_name' => $this->contract?->third?->name,
+            'third_name' => $this->filing?->contract?->third?->name,
+            'contract_name' => $this->filing?->contract?->name,
+            'filing_type' => $this->filing?->type,
+            'type_description' => $this->filing?->type->description(),
             'created_at' => Carbon::parse($this->created_at)->format('d-m-Y'),
             'updated_at' => Carbon::parse($this->updated_at)->format('d-m-Y'),
         ];
