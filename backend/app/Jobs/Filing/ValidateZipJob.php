@@ -13,9 +13,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use App\Helpers\FilingOld\FormatDataTxt;
-use App\Helpers\Constants;
-use App\Helpers\FilingOld\ACFileValidator;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
@@ -49,79 +46,8 @@ class ValidateZipJob implements ShouldQueue
             $numFiles = 0;
             if ($zip->open($this->filePath) === true) {
                 $numFiles = $zip->numFiles;
-
-                $tempDir = 'temp/filings/zip/' . $this->batchId;
-                Storage::disk('public')->makeDirectory($tempDir);
-                $basePath = storage_path('app/public/' . $tempDir);
+                $zip->close();
             }
-
-            // Pruebas borrar
-            // $archivos = [];
-            // $totalRows = 0;
-            // for ($i = 0; $i < $zip->numFiles; $i++) {
-            //     $name = $zip->getNameIndex($i);
-            //     if (substr($name, -1) === '/') {
-            //         continue; // Saltar carpetas
-            //     }
-            //     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            //     if ($ext !== 'txt') {
-            //         continue; // Saltar no-TXT
-            //     }
-
-            //     $zip->extractTo($basePath, $name);
-
-            //     // Usar el nombre completo con subdirectorios si existen
-            //     $filename = basename($name);
-            //     $rutaTemporal = $tempDir . '/' . $name; // Mantener estructura de subdirectorios
-            //     $fullTempPath = storage_path('app/public/' . $rutaTemporal);
-
-            //     // Debug: Log para verificar rutas
-            //     Log::info("Extrayendo archivo ZIP", [
-            //         'name' => $name,
-            //         'filename' => $filename,
-            //         'rutaTemporal' => $rutaTemporal,
-            //         'fullTempPath' => $fullTempPath,
-            //         'exists' => file_exists($fullTempPath)
-            //     ]);
-
-            //     // Contar filas del archivo extraído
-            //     $contenido = file_get_contents($fullTempPath);
-            //     $encoding = mb_detect_encoding($contenido, 'UTF-8, ISO-8859-1', true);
-            //     if ($encoding !== 'UTF-8') {
-            //         $contenido = mb_convert_encoding($contenido, 'UTF-8', $encoding);
-            //     }
-
-            //     $contentDataArray = FormatDataTxt::execute($contenido);
-            //     $countRows = count($contentDataArray);
-            //     $totalRows += $countRows;
-
-            //     $archivos[] = [
-            //         'name' => $filename,
-            //         'extension' => $ext,
-            //         'rutaTemporal' => $rutaTemporal,
-            //         'fullTempPath' => $fullTempPath, // Ruta absoluta para operaciones de archivo
-            //         'contentData' => $contenido,
-            //         'contentDataArray' => $contentDataArray,
-            //         'count_rows' => $countRows,
-            //         'type' => substr($filename, 0, 2),
-            //     ];
-            // }
-
-            // foreach ($archivos as $file) {
-            //     $prefix = strtoupper(substr($file['name'], 0, 2));
-            //     $redis->set("rip_batch:{$this->batchId}:{$prefix}", json_encode($file));
-            //     $redis->expire("rip_batch:{$this->batchId}:{$prefix}", 86400);
-
-            //     $chunks = array_chunk($file['contentDataArray'], Constants::CHUNKSIZE);
-
-            //     foreach ($chunks as $index => $chunk) {
-            //         $startRow = ($index * Constants::CHUNKSIZE) + 1;
-
-            //         if ($prefix === 'AC') {
-            //             ACFileValidator::validate($file['name'], $chunk, $startRow, $this->batchId);
-            //         }
-            //     }
-            // }
 
             $metadata = $redis->hgetall("batch:{$this->batchId}:metadata");
             $metadata['total_rows'] = $numFiles;
@@ -141,16 +67,12 @@ class ValidateZipJob implements ShouldQueue
                 for ($i = 0; $i < $zip->numFiles; $i++) {
                     $fileName = $zip->getNameIndex($i);
                     if (substr($fileName, -1) !== '/') {
-                        $filePath = $tempDir . '/' . $fileName;
-                        $fullFilePath = storage_path('app/public/' . $filePath); // Ruta absoluta
-                        InternalFileValidator::validate($this->batchId, $fullFilePath);
+                        // $filePath = $tempDir . '/' . $fileName;
+                        // $fullFilePath = storage_path('app/public/' . $filePath); // Ruta absoluta
+                        // InternalFileValidator::validate($this->batchId, $fullFilePath);
                     }
                 }
             }
-
-            $zip->close();
-
-
 
             // Obtener errores recolectados
             $errors = ErrorCollector::getErrors($this->batchId);

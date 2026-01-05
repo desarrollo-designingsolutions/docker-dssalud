@@ -1,617 +1,267 @@
 <script setup lang="ts">
+import ModalContract from "@/pages/Filing/New/Components/ModalContract.vue";
+import ModalErrors from "@/pages/Filing/New/Components/ModalErrors.vue";
 import { useAuthenticationStore } from "@/stores/useAuthenticationStore";
-import axios from 'axios';
-import { computed, ref } from 'vue';
 
 const authenticationStore = useAuthenticationStore();
+const emit = defineEmits(["reloadTable", "refreshCountAllDataInvoices"]);
 
-interface FileUpload {
-  id: string
-  name: string
-  size: number
-  file: File
-  progress: number
-  status: 'pending' | 'uploading' | 'completed' | 'error'
-  errorMessage?: string
-  xhr?: XMLHttpRequest
-}
+// Referencias
+const refModalQuestion = ref();
+const refLoading = ref();
+const refModalErrors = ref();
+const refModalContract = ref();
 
-interface FileUploadProps {
-  maxFileSizeMB?: number
-  allowedExtensions?: string[]
-  maxFiles?: number
-}
-
-const props = withDefaults(defineProps<FileUploadProps>(), {
-  maxFileSizeMB: 0, // 0 = Ilimitado
-  allowedExtensions: () => [".json"],
-  maxFiles: 100
-})
-
-// Configuración de Axios
-const accessToken = useCookie("accessToken").value;
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
-  headers: {
-    'Content-Type': 'multipart/form-data',
-    'Accept': 'application/json',
-    'Authorization': `Bearer ${accessToken}`, // Corregido: comillas invertidas
-  },
-})
-
-const successDialog = ref(false)
-const currentStep = ref<'upload' | 'uploading'>('upload')
-
-// File management
-const files = ref<FileUpload[]>([])
-const isDragOver = ref(false)
-const fileInput = ref<HTMLInputElement>()
+const titleModal = ref<string>("Cargar archivo Json");
 const isDialogVisible = ref<boolean>(false);
-
-// Computed properties
-const allFilesCompleted = computed(() => {
-  return files.value.length > 0 && files.value.every(file => file.status === 'completed')
-})
+const disabledFiledsView = ref<boolean>(false);
+const isLoading = ref<boolean>(false);
+const progress = ref(0);
+const filingData = ref<any>({ id: null, contract_id: null, validationTxt: null });
 
 const handleDialogVisible = () => {
   isDialogVisible.value = !isDialogVisible.value;
-  resetState()
 };
 
-// Métodos para manejar archivos
-const generateFileId = () => Math.random().toString(36).substr(2, 9)
+const openModal = async (itemData: any) => {
+  handleDialogVisible();
+  resetValues();
+  progress.value = 0;
+  if (itemData) {
+    filingData.value = cloneObject(itemData);
+  }
+};
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-const formatSizeInfo = (): string => {
-  return props.maxFileSizeMB > 0
-    ? `Límite de tamaño por archivo: ${props.maxFileSizeMB} MB`
-    : 'Tamaño de archivo ilimitado'
-}
-
-// --- CORRECCIÓN PRINCIPAL AQUI ---
-const isValidFile = (file: File): boolean => {
-  // 1. Validar tamaño (Solo si el límite es > 0)
-  if (props.maxFileSizeMB > 0) {
-    const maxSizeBytes = props.maxFileSizeMB * 1024 * 1024
-    if (file.size > maxSizeBytes) {
-      return false
+const submitForm = async () => {
+  if (fileData.value.length === 0) {
+    if (refModalQuestion.value) {
+      refModalQuestion.value.componentData.isDialogVisible = true;
+      refModalQuestion.value.componentData.showBtnSuccess = false;
+      refModalQuestion.value.componentData.btnCancelText = "Ok";
+      refModalQuestion.value.componentData.title = "Por favor, seleccione un archivo antes de continuar.";
     }
+    return;
   }
 
-  // 2. Validar extensiones de forma robusta
-  if (props.allowedExtensions.length > 0) {
-    const fileName = file.name.toLowerCase()
+  const formData = new FormData();
+  fileData.value.forEach((fileItem) => {
+    formData.append("files[]", fileItem.file);
+    fileItem.status = "uploading";
+    fileItem.progress = 0;
+  });
 
-    const hasValidExtension = props.allowedExtensions.some(ext => {
-      const cleanExt = ext.toLowerCase().trim()
-      // Asegurar que tenga punto al inicio para comparar (ej: json -> .json)
-      const extWithDot = cleanExt.startsWith('.') ? cleanExt : `.${cleanExt}`
-      return fileName.endsWith(extWithDot)
-    })
+  formData.append("company_id", String(authenticationStore.company.id));
+  formData.append("user_id", String(authenticationStore.user.id));
+  formData.append("id", String(filingData.value.id));
 
-    if (!hasValidExtension) {
-      return false
+  isLoading.value = true;
+  const { response, data } = await useApi(`/filing/uploadJson`).post(formData);
+  isLoading.value = false;
+
+  if (response.value?.ok && data.value) {
+    progress.value = 0;
+    filingData.value = cloneObject(data.value);
+    if (refLoading.value) {
+      refLoading.value.startLoading();
     }
+    startEchoChannel(data.value); // Inicia el canal dinámicamente
   }
-
-  return true
-}
-
-const getErrorMessage = (file: File): string => {
-  if (props.maxFileSizeMB > 0) {
-    const maxSizeBytes = props.maxFileSizeMB * 1024 * 1024
-    if (file.size > maxSizeBytes) {
-      return `El archivo excede el tamaño máximo de ${props.maxFileSizeMB} MB`
-    }
-  }
-
-  if (props.allowedExtensions.length > 0) {
-    const fileName = file.name.toLowerCase()
-
-    const hasValidExtension = props.allowedExtensions.some(ext => {
-      const cleanExt = ext.toLowerCase().trim()
-      const extWithDot = cleanExt.startsWith('.') ? cleanExt : `.${cleanExt}`
-      return fileName.endsWith(extWithDot)
-    })
-
-    if (!hasValidExtension) {
-      return `Extensión no permitida. Use: ${props.allowedExtensions.join(', ')}`
-    }
-  }
-
-  return 'Archivo no válido'
-}
-// ---------------------------------
-
-const addFiles = (fileList: FileList) => {
-  const filesToAdd = Array.from(fileList)
-  let filesAdded = 0
-  let filesSkipped = 0
-
-  filesToAdd.forEach(file => {
-    // Verificar si ya alcanzamos el límite
-    if (files.value.length >= props.maxFiles) {
-      filesSkipped++
-      return
-    }
-
-    if (!isValidFile(file)) {
-      const errorFile: FileUpload = {
-        id: generateFileId(),
-        name: file.name,
-        size: file.size,
-        file: file,
-        progress: 0,
-        status: 'error',
-        errorMessage: getErrorMessage(file)
-      }
-      files.value.push(errorFile)
-      filesAdded++
-      return
-    }
-
-    const fileUpload: FileUpload = {
-      id: generateFileId(),
-      name: file.name,
-      size: file.size,
-      file: file,
-      progress: 0,
-      status: 'pending'
-    }
-    files.value.push(fileUpload)
-    filesAdded++
-  })
-
-  // Mostrar mensaje si se omitieron archivos por límite
-  if (filesSkipped > 0) {
-    alert(`Se cargaron ${filesAdded} archivos de ${filesToAdd.length}. Límite máximo: ${props.maxFiles} archivos.`)
-  }
-}
-
-const removeFile = (fileId: string) => {
-  files.value = files.value.filter(file => file.id !== fileId)
-}
-
-const onDrop = (event: DragEvent) => {
-  event.preventDefault()
-  isDragOver.value = false
-
-  if (event.dataTransfer?.files) {
-    addFiles(event.dataTransfer.files)
-  }
-}
-
-const openFileDialog = () => {
-  fileInput.value?.click()
-}
-
-const onFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files) {
-    addFiles(target.files)
-    target.value = ''
-  }
-}
-
-// Métodos para subir archivos
-const startUpload = async () => {
-  currentStep.value = 'uploading'
-
-  // Filtrar solo archivos pendientes
-  const filesToUpload = files.value.filter(f => f.status === 'pending')
-
-  // Crear una función para subir un solo archivo
-  const uploadSingleFile = async (file: FileUpload) => {
-    const formData = new FormData();
-    formData.append('files[]', file.file);
-    formData.append('company_id', String(authenticationStore.company.id));
-    formData.append('user_id', String(authenticationStore.user.id));
-
-    try {
-      file.status = 'uploading';
-      file.progress = 0;
-      file.errorMessage = undefined;
-
-      // Crear una nueva instancia XMLHttpRequest
-      const xhr = new XMLHttpRequest();
-      file.xhr = xhr; // Guardar referencia para posible cancelación
-
-      await new Promise((resolve, reject) => {
-        xhr.upload.addEventListener('progress', (progressEvent) => {
-          if (progressEvent.lengthComputable) {
-            file.progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(xhr.response);
-          } else {
-            reject(new Error(xhr.statusText));
-          }
-        });
-
-        xhr.addEventListener('error', () => {
-          reject(new Error('Error en la conexión'));
-        });
-
-        xhr.addEventListener('abort', () => {
-          reject(new Error('Subida cancelada'));
-        });
-
-        // Corregido: comillas invertidas
-        xhr.open('POST', `${api.defaults.baseURL}/filing/uploadJson`);
-
-        // Configurar headers (Corregido: comillas invertidas)
-        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
-        xhr.setRequestHeader('Accept', 'application/json');
-
-        xhr.send(formData);
-      });
-
-      file.status = 'completed';
-      file.progress = 100;
-    } catch (error: any) {
-      // No marcar como error si fue cancelación intencional
-      if (error.message !== 'Subida cancelada') {
-        file.status = 'error';
-        file.errorMessage = error.response?.data?.message || 'Error al subir el archivo';
-      }
-    } finally {
-      file.xhr = undefined; // Limpiar referencia
-    }
-  };
-
-  // Subir archivos en batches de 2
-  for (let i = 0; i < filesToUpload.length; i += 2) {
-    const batch = filesToUpload.slice(i, i + 2)
-    await Promise.allSettled(batch.map(file => uploadSingleFile(file)))
-  }
-
-  // Mostrar éxito si todos los archivos se subieron correctamente
-  if (allFilesCompleted.value) {
-    setTimeout(() => {
-      successDialog.value = true
-    }, 500)
-  }
-}
-
-const hasUploadsInProgress = computed(() => {
-  return files.value.some(file => file.status === 'uploading')
-})
-
-const isCancelling = ref(false)
-
-const cancelUploads = async (deleteUploaded = false) => {
-  isCancelling.value = true
-  try {
-    // 1. Cancelar archivos en progreso (uploading)
-    const uploadsToCancel = files.value.filter(f => f.status === 'uploading')
-    await Promise.all(uploadsToCancel.map(file => {
-      if (file.xhr) {
-        file.xhr.abort()
-      }
-    }))
-
-    // 2. Marcar TODOS los archivos no completados como cancelados
-    files.value.forEach(file => {
-      if (file.status !== 'completed') {
-        file.status = 'error'
-        file.errorMessage = 'Subida cancelada por el usuario'
-        file.xhr = undefined
-      }
-    })
-
-    // 3. Opcional: Eliminar archivos ya subidos del servidor
-    if (deleteUploaded) {
-      await deleteUploadedFiles()
-    }
-
-    closeDialog()
-  } finally {
-    isCancelling.value = false
-  }
-}
-
-// Opcional: Función para limpiar archivos subidos
-const deleteUploadedFiles = async () => {
-  const completedFiles = files.value.filter(f => f.status === 'completed')
-  if (completedFiles.length === 0) return
-
-  try {
-    await api.delete('/file/batchDelete', {
-      data: {
-        file_ids: completedFiles.map(f => f.id),
-        company_id: authenticationStore.company.id
-      }
-    })
-  } catch (error) {
-    console.error('Error al eliminar archivos:', error)
-  }
-}
-
-const loadNewFiles = () => {
-  resetState()
-}
-
-const closeDialog = () => {
-  handleDialogVisible()
-  resetState()
-}
-
-const closeSuccessDialog = () => {
-  successDialog.value = false
-}
-
-const resetState = () => {
-  files.value = []
-  currentStep.value = 'upload'
-  isDragOver.value = false
-}
-
-const acceptString = computed(() => {
-  return props.allowedExtensions.length > 0
-    ? props.allowedExtensions.join(',')
-    : undefined
-})
-
-//ModalQuestion
-const refModalQuestionCancelUpload = ref()
-
-const openModalQuestionCancelUpload = () => {
-  const completedCount = files.value.filter(f => f.status === 'completed').length
-
-  refModalQuestionCancelUpload.value.openModal()
-  // Corregido: comillas invertidas
-  refModalQuestionCancelUpload.value.componentData.title =
-    completedCount > 0
-      ? `¿Cancelar subidas? ${completedCount} archivos ya fueron guardados`
-      : "¿Está seguro que desea cancelar todas las subidas?"
-
-  refModalQuestionCancelUpload.value.componentData.actions = [
-    {
-      text: 'Cancelar solo pendientes',
-      color: 'primary',
-      action: () => cancelUploads(false)
-    },
-    completedCount > 0 && {
-      text: 'Cancelar y eliminar todo',
-      color: 'error',
-      action: () => cancelUploads(true)
-    },
-    {
-      text: 'Continuar subiendo',
-      color: 'secondary',
-      action: () => { }
-    }
-  ].filter(Boolean)
-}
-
-const openModal = async () => {
-  handleDialogVisible()
 };
 
 defineExpose({
-  openModal
+  openModal,
+  disabledFiledsView,
 });
+
+// DropZone
+const { dropZoneRef, fileData, open, error, resetValues } = useFileDrop(0, ["json"]);
+
+watch(error, (newError) => {
+  if (newError && refModalQuestion.value) {
+    refModalQuestion.value.componentData.isDialogVisible = true;
+    refModalQuestion.value.componentData.showBtnSuccess = false;
+    refModalQuestion.value.componentData.btnCancelText = "Ok";
+    refModalQuestion.value.componentData.title = newError;
+  }
+});
+
+const openModalErrors = (item: any) => {
+  if (refModalErrors.value) {
+    refModalErrors.value.openModal(item);
+  }
+};
+
+const openModalContract = async () => {
+  if (!error.value && filingData.value.contract_id == null) {
+    if (refModalContract.value) {
+      refModalContract.value.openModal(filingData.value.id, filingData.value.type);
+    }
+  } else {
+    isLoading.value = true;
+    const { response, data } = await useApi(`/filing/updateContract`).post({
+      filing_id: filingData.value.id,
+      contract_id: filingData.value.contract_id,
+    });
+    isLoading.value = false;
+
+    if (response.value?.ok && data.value) {
+      emit("reloadTable"); // Recarga la tabla
+      emit("refreshCountAllDataInvoices"); // Recarga Contadores
+    }
+  }
+  handleDialogVisible();
+};
+
+// Canal dinámico
+let channel = null;
+const startEchoChannel = (data: any) => {
+  if (channel) {
+    stopEchoChannel(); // Limpia los eventos previos antes de volver a suscribirse
+  }
+
+  channel = window.Echo.channel(`filing.${data.id}`);
+  channel.listen(".FilingFinishProcessJob", (event: any) => {
+
+    setTimeout(() => {
+      if (refLoading.value) {
+        refLoading.value.stopLoading();
+      }
+    }, 1000);
+
+    if (event.error_status.has_errors) {
+      openModalErrors(event);
+    } else {
+      if (refModalQuestion.value) {
+        refModalQuestion.value.componentData.isDialogVisible = true;
+        refModalQuestion.value.componentData.title = "¿Deseas radicar los archivos?";
+        refModalQuestion.value.componentData.subTitle = "Todo ha finalizado sin novedad...";
+      }
+      stopEchoChannel(); // Detiene los eventos específicos
+    }
+  }).listen(".FilingProgressEvent", (event: any) => {
+    progress.value = Number(event.progress);
+  });
+};
+
+const stopEchoChannel = () => {
+  if (channel) {
+    channel.stopListening(".FilingFinishProcessJob");
+    channel.stopListening(".FilingProgressEvent");
+    channel = null; // Limpia la referencia local
+  }
+};
+
+onUnmounted(() => {
+  stopEchoChannel(); // Limpia los eventos cuando el componente se desmonta
+});
+
+// Resto de las funciones
+const cancelOperation = async (data: any) => {
+  if (data.has_invoices) {
+    updateValidationTxt();
+  } else {
+    deleteFiling();
+  }
+};
+
+const deleteFiling = async () => {
+  isLoading.value = true;
+  const { response, data } = await useApi(`/filing/delete/${filingData.value.id}`).delete();
+  isLoading.value = false;
+  filingData.value.id = null
+
+};
+
+const updateValidationTxt = async () => {
+  isLoading.value = true;
+  const { response, data } = await useApi(`/filing/updateValidationTxt/${filingData.value.id}`).get();
+  isLoading.value = false;
+};
+
+const openFileDialog = () => {
+  error.value = null;
+  open();
+};
+
+// Asegúrate de que cloneObject esté definido
+function cloneObject<T>(data: T): T {
+  if (data === undefined) {
+    return undefined as T;
+  }
+  return JSON.parse(JSON.stringify(data));
+}
 </script>
 
 <template>
-  <VDialog v-model="isDialogVisible" persistent max-width="800px">
-    <DialogCloseBtn @click="closeDialog()" />
-    <v-card>
-      <div>
+  <div>
+    <LoadingBase ref="refLoading" :progress="progress" :is-loading="isLoading" />
+    <VDialog v-model="isDialogVisible" :overlay="false" max-width="90rem" transition="dialog-transition" persistent>
+      <DialogCloseBtn @click="handleDialogVisible" />
+      <VCard :loading="isLoading" :disabled="isLoading" class="w-100">
         <VToolbar color="primary">
-          <VToolbarTitle>Carga de archivos masivos</VToolbarTitle>
+          <VToolbarTitle>{{ titleModal }}</VToolbarTitle>
         </VToolbar>
-      </div>
-
-      <v-card-text>
-        <div v-if="currentStep === 'upload'" class="upload-section">
-          <div ref="dropzone" class="dropzone" :class="{ 'dragover': isDragOver }" @drop="onDrop"
-            @dragover.prevent="isDragOver = true" @dragleave.prevent="isDragOver = false" @dragenter.prevent>
-            <div class="dropzone-content">
-              <v-icon size="48" color="grey-lighten-1">tabler-cloud-upload</v-icon>
-              <h3 class="text-h6 mt-4 mb-2">Arrastre y suelte para cargar archivos</h3>
-              <p class="text-body-2 mb-4">o</p>
-              <v-btn color="primary" @click="openFileDialog">
-                Navegar en carpeta
-              </v-btn>
-            </div>
-          </div>
-
-          <div class="file-info mt-4">
-            <p class="text-body-2 text-grey-darken-1">
-              {{ formatSizeInfo() }}
-            </p>
-            <p class="text-body-2 text-grey-darken-1">
-              {{ props.allowedExtensions.length > 0
-                ? `Extensiones permitidas: ${props.allowedExtensions.join(', ')}`
-                : 'Se permiten archivos de cualquier tipo' }}
-            </p>
-            <p class="text-body-2 text-grey-darken-1">
-              Máximo {{ props.maxFiles }} archivo{{ props.maxFiles > 1 ? 's' : '' }} permitido{{ props.maxFiles > 1 ?
-                's' : '' }}
-            </p>
-          </div>
-
-          <div v-if="files.length > 0" class="file-list mt-4">
-            <div class="file-grid">
-              <div v-for="file in files" :key="file.id" class="file-item">
-                <div class="file-info-item">
-                  <span class="file-name">{{ file.name }}</span>
-                  <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                  <v-alert v-if="file.errorMessage" type="error" density="compact" class="mt-2">
-                    {{ file.errorMessage }}
-                  </v-alert>
+        <VCardText>
+          <div class="flex">
+            <div class="w-full h-auto relative">
+              <div ref="dropZoneRef" class="cursor-pointer" @click="openFileDialog">
+                <div v-if="fileData.length === 0"
+                  class="d-flex flex-column justify-center align-center gap-y-3 px-6 py-10 border-dashed drop-zone">
+                  <IconBtn variant="tonal" class="rounded-sm">
+                    <VIcon icon="tabler-upload" />
+                  </IconBtn>
+                  <div class="text-base text-high-emphasis font-weight-medium">
+                    Arrastra y suelta tu archivo aquí.
+                  </div>
+                  <span class="text-disabled">o</span>
+                  <VBtn variant="tonal">Explorar archivos</VBtn>
                 </div>
-                <v-btn icon="tabler-x" size="small" variant="text" @click="removeFile(file.id)" />
+                <div v-else class="d-flex justify-center align-center gap-3 pa-8 border-dashed drop-zone flex-wrap">
+                  <VRow class="match-height w-100">
+                    <template v-for="(item, index) in fileData" :key="index">
+                      <VCol cols="12" md="4" lg="3">
+                        <VCard :ripple="false" border class="d-flex flex-column">
+                          <VCardText @click.stop>
+                            <VImg :src="item.url" />
+                            <div class="mt-2">
+                              <span class="clamp-text text-wrap">{{ item.file.name }}</span>
+                              <span>{{ item.file.size / 1000 }} KB</span>
+                            </div>
+                            <div v-if="item.status === 'uploading'" class="mt-2">
+                              <VProgressCircular :size="24" :value="item.progress" color="primary" />
+                              <span>Cargando...</span>
+                            </div>
+                            <div v-if="item.status === 'completed'" class="mt-2 text-success">
+                              <span>¡Archivo cargado exitosamente!</span>
+                            </div>
+                            <div v-if="item.status === 'failed'" class="mt-2 text-danger">
+                              <span>Error al cargar el archivo</span>
+                            </div>
+                          </VCardText>
+                          <VSpacer />
+                          <VCardActions>
+                            <VBtn variant="outlined" @click.stop="fileData.splice(index, 1)">
+                              <VIcon icon="tabler-trash" />
+                            </VBtn>
+                          </VCardActions>
+                        </VCard>
+                      </VCol>
+                    </template>
+                  </VRow>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </VCardText>
+        <VCardText class="d-flex justify-end gap-3 flex-wrap">
+          <VBtn :loading="isLoading" color="secondary" variant="tonal" @click="handleDialogVisible()">Cancelar</VBtn>
+          <VBtn :disabled="isLoading" :loading="isLoading" @click="submitForm()" color="primary">Continuar</VBtn>
+        </VCardText>
+      </VCard>
+    </VDialog>
 
-        <div v-if="currentStep === 'uploading'" class="upload-progress-section">
-          <div class="file-grid">
-            <div v-for="file in files" :key="file.id" class="file-progress-item">
-              <div class="file-info-item">
-                <span class="file-name">{{ file.name }}</span>
-                <span class="file-size">{{ formatFileSize(file.size) }}</span>
-              </div>
-              <div class="file-status">
-                <v-progress-linear v-if="file.status === 'uploading'" :model-value="file.progress" color="primary"
-                  height="6" rounded />
-                <v-icon v-if="file.status === 'completed'" color="success" size="24">
-                  tabler-circle-check
-                </v-icon>
-                <v-icon v-if="file.status === 'error'" color="error" size="24">
-                  tabler-alert-circle
-                </v-icon>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </v-card-text>
-
-      <VDivider />
-      <VCardText class="d-flex justify-end gap-3 flex-wrap">
-        <v-btn @click="openModalQuestionCancelUpload" :disabled="!hasUploadsInProgress" :loading="isCancelling">
-          {{ hasUploadsInProgress ? 'Cancelar Subidas' : 'Cancelar' }}
-        </v-btn>
-
-        <v-btn v-if="currentStep === 'upload'" color="primary" :disabled="files.length === 0" @click="startUpload">
-          Guardar
-        </v-btn>
-
-        <v-btn v-if="currentStep === 'uploading'" color="primary" :disabled="!allFilesCompleted" @click="loadNewFiles">
-          Cargar nuevos archivos
-        </v-btn>
-
-      </VCardText>
-    </v-card>
-
-    <input ref="fileInput" type="file" multiple :accept="acceptString" style="display: none" @change="onFileSelect" />
-  </VDialog>
-
-  <VDialog v-model="successDialog" max-width="500px">
-    <DialogCloseBtn @click="closeSuccessDialog()" />
-    <VCard>
-      <v-card-text class="text-h5 text-center">
-        <v-icon color="success" size="5rem" class="mb-2">tabler-circle-check</v-icon>
-        <h2>¡Subida exitosa!</h2>
-        <span>{{ files.length }} archivo{{ files.length > 1 ? 's' : '' }} se han cargado correctamente.</span>
-      </v-card-text>
-      <VCardText class="d-flex justify-center">
-        <v-btn @click="closeSuccessDialog">
-          OK
-        </v-btn>
-      </VCardText>
-    </VCard>
-  </VDialog>
-
-  <ModalQuestion ref="refModalQuestionCancelUpload" @success="cancelUploads" />
+    <ModalQuestion ref="refModalQuestion" @cancel="cancelOperation" @success="openModalContract" />
+    <ModalErrors ref="refModalErrors" @cancel="cancelOperation" @continue="openModalContract" />
+    <ModalContract ref="refModalContract" />
+  </div>
 </template>
-
-<style scoped>
-.dropzone {
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  padding: 60px 20px;
-  text-align: center;
-  transition: all 0.3s ease;
-  background-color: #fafafa;
-}
-
-.dropzone.dragover {
-  border-color: #1976d2;
-  background-color: #e3f2fd;
-}
-
-.dropzone-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.file-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.file-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #f5f5f5;
-}
-
-.file-progress-item {
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #fff;
-}
-
-.file-info-item {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
-.file-name {
-  font-weight: 500;
-  font-size: 14px;
-  color: #424242;
-}
-
-.file-size {
-  font-size: 12px;
-  color: #757575;
-  margin-top: 2px;
-}
-
-.file-status {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.upload-section {
-  min-height: 400px;
-}
-
-.upload-progress-section {
-  min-height: 300px;
-}
-
-.database-section {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 24px;
-}
-
-@media (max-width: 600px) {
-  .file-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

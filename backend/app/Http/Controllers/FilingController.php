@@ -23,6 +23,7 @@ use App\Jobs\Filing\ProcessMassXmlUpload;
 use App\Jobs\Filing\SaveErrorsJob;
 use App\Jobs\Filing\ValidateZipJob;
 use App\Jobs\ProcessRedisBatch;
+use App\Jobs\TestFilingImport;
 use App\Mappers\ServiceFilingMapper;
 use App\Models\InvoiceAudit;
 use App\Models\Patient;
@@ -139,25 +140,31 @@ class FilingController extends Controller
                 'metadata' => json_encode($metadata),
             ]);
 
-            try {
-                // Seleccionar una cola disponible
-                $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
+            $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
 
-                Bus::chain([
-                    new ValidateZipJob($fullPath, $batchId, $user_id, $company_id, $selectedQueue),
-                    new SaveErrorsJob($batchId, $selectedQueue),
-                ])
-                    ->catch(function (\Throwable $e) use ($batchId) {
-                        Log::error("Validation failed for batch {$batchId}: {$e->getMessage()}");
-                        ErrorCollector::saveErrorsToDatabase($batchId, 'failed');
-                        event(new ImportProgressEvent($batchId, 0, 'Error en validación', count(ErrorCollector::getErrors($batchId)), 'failed', 'error'));
-                    })
-                    ->onQueue($selectedQueue)
-                    ->dispatch();
-            } catch (\Exception $e) {
-                Log::error("No se pudo seleccionar una cola disponible: " . $e->getMessage());
-                // Manejar el error (ej: reintentar o notificar al usuario)
-            }
+            TestFilingImport::dispatch($batchId, $selectedQueue);
+
+
+
+            // try {
+            //     // Seleccionar una cola disponible
+            //     $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
+
+            //     Bus::chain([
+            //         new ValidateZipJob($fullPath, $batchId, $user_id, $company_id, $selectedQueue),
+            //         new SaveErrorsJob($batchId, $selectedQueue),
+            //     ])
+            //         ->catch(function (\Throwable $e) use ($batchId) {
+            //             Log::error("Validation failed for batch {$batchId}: {$e->getMessage()}");
+            //             ErrorCollector::saveErrorsToDatabase($batchId, 'failed');
+            //             event(new ImportProgressEvent($batchId, 0, 'Error en validación', count(ErrorCollector::getErrors($batchId)), 'failed', 'error'));
+            //         })
+            //         ->onQueue($selectedQueue)
+            //         ->dispatch();
+            // } catch (\Exception $e) {
+            //     Log::error("No se pudo seleccionar una cola disponible: " . $e->getMessage());
+            //     // Manejar el error (ej: reintentar o notificar al usuario)
+            // }
 
             return [
                 'code' => 200,
