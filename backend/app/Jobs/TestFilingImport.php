@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 class TestFilingImport implements ShouldQueue
-{
+{ 
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
