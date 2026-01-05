@@ -34,5 +34,5 @@ class Constants
     public const KEY_VrServicio = 'vrServicio';
 
     // Lista de colas disponibles para importacion de FILING
-    public const AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP = ['import_filing_zip_1'];
+    public const AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP = ['import_filing_zip_1', 'import_filing_zip_2', 'import_filing_zip_3'];
 }
