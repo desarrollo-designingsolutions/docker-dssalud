@@ -7,276 +7,139 @@ use Illuminate\Support\Facades\Redis;
 
 class AFFileValidator
 {
-    /**
-     * Valida el archivo AF y sus columnas.
-     *
-     * @param  string  $fileName  Nombre del archivo
-     * @param  string  $rowData  datos de la fila del txt a validar
-     * @param  string  $rowNumber  numero de la fila del txt a validar
-     * @param  string  $filing_id  numero de la fila del txt a validar
-     */
-    public static function validate(string $fileName, string $rowData, $rowNumber, $filing_id): void
+    public static function validate(string $fileName, string $rowData, int $rowNumber, string $batchId): void
     {
-        $keyErrorRedis = "filingOld:{$filing_id}:errors";
+        $data = array_map('trim', explode(',', $rowData));
 
-        $rowData = array_map('trim', explode(',', $rowData));
-
-        $titleColumn = [
-            'columna 1: Código del prestador de servicios de salud',
-            'columna 2: Razón social o apellidos y nombre del prestador de servicios de salud',
-            'columna 3: Tipo de identificación del prestador de servicios de salud',
-            'columna 4: Número de identificación del prestador',
-            'columna 5: Número de la factura',
-            'columna 6: Fecha de expedición de la factura',
-            'columna 7: Fecha de inicio',
-            'columna 8: Fecha final',
-            'columna 9: Código entidad administradora',
-            'columna 10: Nombre entidad administradora',
-            'columna 11: Número del contrato',
-            'columna 12: Plan de beneficios',
-            'columna 13: Número de la póliza',
-            'columna 14: Valor total del pago compartido (copago)',
-            'columna 15: Valor de la comisión',
-            'columna 16: Valor total de descuentos',
-            'columna 17: Valor neto a pagar por la entidad contratante',
+        // Mapeo de columnas (UX)
+        $cols = [
+            0 => 'Columna 1: Código del prestador',
+            1 => 'Columna 2: Razón social',
+            2 => 'Columna 3: Tipo ID',
+            3 => 'Columna 4: Num ID Prestador',
+            4 => 'Columna 5: Num Factura',
+            5 => 'Columna 6: Fecha Expedición',
+            6 => 'Columna 7: Fecha Inicio',
+            7 => 'Columna 8: Fecha Final',
+            8 => 'Columna 9: Cod Entidad',
+            // ... resto de columnas
         ];
 
-        // 1. Validar código del prestador de servicios de salud (columna 1)
-        // Valor obligatorio
-        if (empty($rowData[0])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_001',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[0],
-                $rowData[0],
-                'El dato registrado es obligatorio.'
-            );
+        // Variables
+        $codPrestador = $data[0] ?? '';
+        $razonSocial  = $data[1] ?? '';
+        $tipoId       = $data[2] ?? '';
+        $numId        = $data[3] ?? '';
+        $numFactura   = $data[4] ?? '';
+        $fecExp       = $data[5] ?? '';
+        $fecIni       = $data[6] ?? '';
+        $fecFin       = $data[7] ?? '';
+        $codEntidad   = $data[8] ?? '';
+
+        // -----------------------------------------------------------
+        // 1. CÓDIGO PRESTADOR (Col 1)
+        // -----------------------------------------------------------
+
+        // A. Validación Obligatorio
+        if ($codPrestador === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_001',
+                "Dato obligatorio.", $cols[0], '');
         }
 
-        // Que sea el mismo registrado en el archivo de control. Debe ser igual en todos los registros del archivo AF
-        $numberInvoiceCT = self::getNumberInvoiceCT($filing_id);
-        if (! empty($numberInvoiceCT)) {
-            // Se valida que el número de factura sea igual en todos los registros del archivo AF
-            $validationNumberInvoice = self::validationNumberInvoice($filing_id, $numberInvoiceCT);
+        // B. Validación Cruzada contra CT (OPTIMIZADA) 🚀
+        // Recuperamos el código que guardamos en la Fase 2
+        $providerCodeCT = Redis::connection('redis_6380')->hget("batch:{$batchId}:header_info", 'provider_code');
 
-            if ($validationNumberInvoice === false) {
-                ErrorCollector::addError(
-                    $keyErrorRedis,
-                    'FILE_AF_ERROR_002',
-                    'R',
-                    null,
-                    $fileName,
-                    $rowNumber,
-                    $titleColumn[0],
-                    $rowData[0],
-                    'El dato registrado no es igual al informado en el archivo AF'
-                );
-            }
-        } else {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_002',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[0],
-                $rowData[0],
-                'El dato registrado no es igual al informado en el archivo AF'
-            );
+        if ($providerCodeCT && $codPrestador !== $providerCodeCT) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_CROSS',
+                "No coincide con el CT ($providerCodeCT).", $cols[0], $codPrestador);
         }
 
-        // 2. Razón social o apellidos y nombre del prestador de servicios de salud (columna 2)
-        // Valor obligatorio
-        if (empty($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_003',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 2. RAZÓN SOCIAL (Col 2)
+        // -----------------------------------------------------------
+        if ($razonSocial === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_003',
+                "Dato obligatorio.", $cols[1], '');
         }
 
-        // 3. Tipo de identificación del prestador de servicios de salud (columna 3)
-        // Valor obligatorio
-        if (empty($rowData[2])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_004',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato registrado es obligatorio.'
-            );
-        }
-
-        // Unicamente los valores permitidos
+        // -----------------------------------------------------------
+        // 3. TIPO ID PRESTADOR (Col 3)
+        // -----------------------------------------------------------
         $allowedPrefixes = ['NI', 'CC', 'CE', 'CD', 'PA', 'PE'];
-        if (! in_array($rowData[2], $allowedPrefixes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_005',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato ingresado no es permitido'
-            );
+        if (!in_array($tipoId, $allowedPrefixes)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_005',
+                "Valor no permitido.", $cols[2], $tipoId);
         }
 
-        // 4. Número de identificación del prestador (columna 4)
-        // Valor obligatorio
-        if (empty($rowData[3])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_006',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[3],
-                $rowData[3],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 4. NUM ID PRESTADOR (Col 4)
+        // -----------------------------------------------------------
+        if ($numId === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_006',
+                "Dato obligatorio.", $cols[3], '');
         }
 
-        // 5. Número de la factura (columna 5)
-        // Valor obligatorio
-        if (empty($rowData[4])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_007',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[4],
-                $rowData[4],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 5. NUM FACTURA (Col 5)
+        // -----------------------------------------------------------
+        if ($numFactura === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_007',
+                "Dato obligatorio.", $cols[4], '');
         }
 
-        // 6. Fecha de expedición de la factura (columna 6)
-        // Valor obligatorio
-        if (empty($rowData[5])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_008',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[5],
-                $rowData[5],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 6. FECHAS (Col 6, 7, 8)
+        // -----------------------------------------------------------
+        // Expedición
+        if (!self::isValidDate($fecExp)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_008',
+                "Fecha expedición inválida.", $cols[5], $fecExp);
+        }
+        // Inicio
+        if (!self::isValidDate($fecIni)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_009',
+                "Fecha inicio inválida.", $cols[6], $fecIni);
+        }
+        // Final
+        if (!self::isValidDate($fecFin)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_010',
+                "Fecha final inválida.", $cols[7], $fecFin);
         }
 
-        // 7. Fecha de expedición de la factura (columna 7)
-        // Valor obligatorio
-        if (empty($rowData[6])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_009',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[6],
-                $rowData[6],
-                'El dato registrado es obligatorio.'
-            );
+        // Lógica: Inicio <= Final
+        if (self::isValidDate($fecIni) && self::isValidDate($fecFin)) {
+            $dIni = \DateTime::createFromFormat('d/m/Y', $fecIni);
+            $dFin = \DateTime::createFromFormat('d/m/Y', $fecFin);
+            if ($dIni > $dFin) {
+                self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_DATES',
+                    "Fecha Inicio mayor a Final.", $cols[6], "$fecIni - $fecFin");
+            }
         }
 
-        // 8. Fecha de expedición de la factura (columna 8)
-        // Valor obligatorio
-        if (empty($rowData[7])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_010',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[7],
-                'El dato registrado es obligatorio.'
-            );
-        }
-
-        // 9. Fecha de inicio (columna 9)
-        // Valor obligatorio
-        if (empty($rowData[8])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AF_ERROR_011',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[8],
-                $rowData[8],
-                'El dato registrado es obligatorio.'
-            );
-        }
-
-        // logMessage(ErrorCollector::getErrors($keyErrorRedis));
-    }
-
-    private static function getNumberInvoiceCT($filing_id): bool|string
-    {
-        $contentDataArrayCt = json_decode(Redis::get("filingOld:{$filing_id}:CT"), 1);
-
-        // El arreglo normal convertido
-        $normalArray = array_map(function ($item) {
-            return explode(',', str_replace('\/', '/', $item));
-        }, $contentDataArrayCt);
-
-        // Filtrar el arreglo para encontrar el elemento deseado
-        $filteredArray = array_filter($normalArray, function ($item) {
-            return strpos($item[2], 'AF') === 0;
-        });
-
-        // Obtener el valor de la posición 0 del elemento filtrado
-        $desiredValue = '';
-        if (! empty($filteredArray)) {
-            $firstItem = reset($filteredArray); // Obtener el primer elemento del arreglo filtrado
-            $desiredValue = $firstItem[0];
-        }
-
-        // Imprimir el resultado
-        if ($desiredValue !== '') {
-            return $desiredValue;
-        } else {
-            return false;
+        // -----------------------------------------------------------
+        // 9. CÓDIGO ENTIDAD (Col 9)
+        // -----------------------------------------------------------
+        if ($codEntidad === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AF_ERROR_011',
+                "Dato obligatorio.", $cols[8], '');
         }
     }
 
-    private static function validationNumberInvoice($filing_id, $search)
-    {
-        $contentDataArrayAf = json_decode(Redis::get("filingOld:{$filing_id}:AF"), 1);
+    /**
+     * Helper privado
+     */
+    private static function logError($batchId, $row, $fileName, $data, $code, $msg, $colTitle, $val) {
+        $debugData = ['file' => $fileName, 'code' => $code, 'row_data' => $data];
+        ErrorCollector::addError(
+            $batchId, $row, $colTitle, "[$code] $msg", 'R', $val, json_encode($debugData)
+        );
+    }
 
-        // Convertir cada cadena en un arreglo
-        $processedDataArrayAf = array_map(fn ($item) => explode(',', str_replace('\/', '/', $item)), $contentDataArrayAf);
-
-        // Extraer la primera columna (posiciones 0) de todos los sub-arreglos
-        $firstColumnAf = array_column($processedDataArrayAf, 0);
-
-        // Verificar si todas las posiciones son iguales a la variable específica
-        return array_reduce($firstColumnAf, fn ($carry, $item) => $carry && ($item === $search), true);
+    private static function isValidDate(string $date): bool {
+        if ($date === '') return false; // Vacío es inválido aquí, si es opcional cambiar lógica
+        $parts = explode('/', $date);
+        if (count($parts) !== 3) return false;
+        return checkdate((int) $parts[1], (int) $parts[0], (int) $parts[2]);
     }
 }

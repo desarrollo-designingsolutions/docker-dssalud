@@ -69,18 +69,23 @@ class ErrorCollector
         Redis::connection('redis_6380')->del("import_errors:{$batchId}");
     }
 
-    /**
-     * Guarda los errores en la base de datos y actualiza ProcessBatch.
+   /**
+     * Guarda los errores en la base de datos de manera eficiente con la memoria.
      */
     public static function saveErrorsToDatabase(string $batchId, string $status = 'failed'): void
     {
         $redis = Redis::connection('redis_6380');
-        $errors = self::getErrors($batchId);
+        $errorKey = "import_errors:{$batchId}";
+
+        // 1. Obtenemos el total de errores en Redis
+        $totalErrors = (int) $redis->llen($errorKey);
+
+        // Metadatos
         $metadata = $redis->hgetall("batch:{$batchId}:metadata");
         $metadata['completed_at'] = now()->toDateTimeString();
 
-        if (empty($errors)) {
-            // Log::info("No errors to save for batch {$batchId}");
+        // Si no hay errores, cerramos limpio
+        if ($totalErrors === 0) {
             ProcessBatch::where('batch_id', $batchId)->update([
                 'error_count' => 0,
                 'status' => 'completed',
@@ -88,55 +93,63 @@ class ErrorCollector
                 'updated_at' => now(),
             ]);
             $redis->hmset("batch:{$batchId}:metadata", $metadata);
-            $redis->hmset("rip_batch:{$batchId}", ['status' => 'completed']);
             self::clear($batchId);
             return;
         }
 
-        $chunkSize = 500; // Configurable: adjust to 100 or other value as needed
-        $errorRecords = array_map(function ($error) use ($batchId) {
-            return [
-                'id' => Str::uuid(),
-                'batch_id' => $batchId,
-                'row_number' => $error['row_number'] ?? null,
-                'column_name' => $error['column_name'] ?? null,
-                'error_message' => $error['error_message'],
-                'error_type' => $error['error_type'] ?? 'R',
-                'error_value' => $error['error_value'] ?? null,
-                'original_data' => isset($error['original_data']) ? json_encode(['data' => $error['original_data']]) : null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }, $errors);
+        // 2. PROCESAMIENTO POR LOTES (Sin saturar RAM)
+        // En lugar de lrange(0, -1), sacamos bloques de Redis
+        $batchSize = 500;
 
-        // Insert errors in chunks
-        $totalErrors = count($errorRecords);
-        $chunks = array_chunk($errorRecords, $chunkSize);
-        // Log::info("Inserting {$totalErrors} errors for batch {$batchId} in " . count($chunks) . " chunks of {$chunkSize}.");
+        // Iteramos sacando de a 500 errores desde el inicio de la lista
+        // lrange no borra, así que usamos un puntero o simplemente lpop si quisiéramos borrar al vuelo.
+        // Para seguridad (por si falla la DB), usamos lrange por paginación.
 
-        foreach ($chunks as $index => $chunk) {
-            try {
-                ProcessBatchesError::insert($chunk);
-                // Log::info("Inserted chunk " . ($index + 1) . " of " . count($chunks) . " for batch {$batchId} (" . count($chunk) . " records).");
-            } catch (\Exception $e) {
-                Log::error("Failed to insert chunk " . ($index + 1) . " for batch {$batchId}: {$e->getMessage()}");
-                // Optionally notify user here if needed
-                throw $e; // Re-throw to ensure the error is logged in the failed_jobs table
+        for ($i = 0; $i < $totalErrors; $i += $batchSize) {
+            // Traemos solo 500 elementos
+            $rawErrors = $redis->lrange($errorKey, $i, $i + $batchSize - 1);
+
+            if (empty($rawErrors)) break;
+
+            $chunkData = [];
+            foreach ($rawErrors as $errorJson) {
+                $error = json_decode($errorJson, true);
+                $chunkData[] = [
+                    'id' => Str::uuid(),
+                    'batch_id' => $batchId,
+                    'row_number' => $error['row_number'] ?? null,
+                    'column_name' => $error['column_name'] ?? null,
+                    'error_message' => $error['error_message'],
+                    'error_type' => $error['error_type'] ?? 'R',
+                    'error_value' => $error['error_value'] ?? null,
+                    'original_data' => isset($error['original_data']) ? json_encode(['data' => $error['original_data']]) : null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             }
+
+            // Insertamos este lote en BD
+            try {
+                ProcessBatchesError::insert($chunkData);
+            } catch (\Exception $e) {
+                Log::error("Error insertando chunk errores batch {$batchId}: " . $e->getMessage());
+            }
+
+            // Liberamos memoria de este ciclo
+            unset($rawErrors, $chunkData);
         }
 
+        // 3. Actualizar estado final
         ProcessBatch::where('batch_id', $batchId)->update([
             'error_count' => $totalErrors,
-            'status' => $status,
+            'status' => $status, // 'failed' o 'completed_with_errors'
             'metadata' => json_encode($metadata),
             'updated_at' => now(),
         ]);
 
         $redis->hmset("batch:{$batchId}:metadata", $metadata);
-        $redis->hmset("rip_batch:{$batchId}", ['status' => $status]);
 
-        // Log::info("Saved {$totalErrors} errors to process_batches_errors for batch {$batchId}");
-
+        // Limpiamos Redis al final
         self::clear($batchId);
     }
 }

@@ -7,542 +7,370 @@ use App\Helpers\Common\ErrorCollector;
 class USFileValidator
 {
     /**
-     * Valida el archivo CT y sus columnas.
-     *
-     * @param  string  $fileName  Nombre del archivo
-     * @param  string  $rowData  Datos de la fila del txt a validar (como cadena CSV)
-     * @param  int  $rowNumber  Número de la fila del txt a validar
-     * @param  string  $filing_id  ID del proceso
-     * @return bool
+     * Valida el archivo US (Usuarios).
      */
-    public static function validate(string $fileName, string $rowData, int $rowNumber, string $filing_id): void
+    public static function validate(string $fileName, string $rowData, int $rowNumber, string $batchId): void
     {
-        $keyErrorRedis = "filingOld:{$filing_id}:errors";
+        // Convertimos CSV string a Array
+        $data = array_map('trim', explode(',', $rowData));
 
-        // Dividir la fila en columnas
-        $rowData = array_map('trim', explode(',', $rowData));
-
-        $titleColumn = [
-            'Columna 1: Tipo de identificación del usuario.',
-            'Columna 2: Número de identificación del usuario del sistema.',
-            'Columna 3: Código entidad administradora.',
-            'Columna 4: Tipo de usuario.',
-            'Columna 5: Primer apellido del usuario.',
-            'Columna 6: Segundo apellido del usuario.',
-            'Columna 7: Primer nombre del usuario.',
-            'Columna 8: Segundo nombre del usuario.',
-            'Columna 9: Edad.',
-            'Columna 10: Unidad de medida de la edad.',
-            'Columna 11: Sexo.',
-            'Columna 12: Código del departamento de residencia habitual.',
-            'Columna 13: Código del municipio de residencia habitual.',
-            'Columna 14: Zona de residencia habitual.',
+        // 1. Títulos Originales (Mejor UX)
+        $cols = [
+            0 => 'Columna 1: Tipo de identificación del usuario.',
+            1 => 'Columna 2: Número de identificación del usuario del sistema.',
+            2 => 'Columna 3: Código entidad administradora.',
+            3 => 'Columna 4: Tipo de usuario.',
+            4 => 'Columna 5: Primer apellido del usuario.',
+            5 => 'Columna 6: Segundo apellido del usuario.',
+            6 => 'Columna 7: Primer nombre del usuario.',
+            7 => 'Columna 8: Segundo nombre del usuario.',
+            8 => 'Columna 9: Edad.',
+            9 => 'Columna 10: Unidad de medida de la edad.',
+            10 => 'Columna 11: Sexo.',
+            11 => 'Columna 12: Código del departamento de residencia habitual.',
+            12 => 'Columna 13: Código del municipio de residencia habitual.',
+            13 => 'Columna 14: Zona de residencia habitual.',
         ];
 
-        // Validar columna 0: Tipo de identificación del usuario
+        // Variables para legibilidad interna
+        $tipoId   = $data[0] ?? '';
+        $numId    = $data[1] ?? '';
+        // $codAdmin = $data[2] ?? '';
+        $tipoUsu  = $data[3] ?? '';
+        $ape1     = $data[4] ?? '';
+        $nom1     = $data[6] ?? '';
+        $edad     = $data[8] ?? '';
+        $unidad   = $data[9] ?? '';
+        $sexo     = $data[10] ?? '';
+        $dep      = $data[11] ?? '';
+        $mun      = $data[12] ?? '';
+        $zona     = $data[13] ?? '';
+
+        // -----------------------------------------------------------
+        // VALIDACIÓN TIPO ID (Columna 1)
+        // -----------------------------------------------------------
         $allowedTypes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
-        $typeId = trim($rowData[0] ?? '');
-        $idNumber = trim($rowData[1] ?? ''); // Columna 2: Número de identificación
-        $ageUnit = trim($rowData[9] ?? ''); // Columna 10: Unidad de medida
 
-        // Verificar si el tipo de identificación es válido
-        if (! in_array($typeId, $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_001',
-                'R',
-                null,
-                $fileName,
+        if (!in_array($tipoId, $allowedTypes)) {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[0],
-                $typeId,
-                'El dato registrado no es un valor permitido.'
+                $fileName,
+                $data,
+                'FILE_US_ERROR_001',
+                "El valor '{$tipoId}' no es válido.",
+                $cols[0],
+                $tipoId
             );
-        } else {
-            switch ($typeId) {
-                case 'CC':
-                    // 1. Validar que el número de identificación sea numérico
-                    if (! empty($idNumber) && ! ctype_digit($idNumber)) {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_002',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo número de identificación debe ser numérico.'
-                        );
-                    }
+        }
 
-                    // 2. Validar que la unidad de medida sea igual a 1
-                    if ($ageUnit !== '1') {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_003',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo unidad de medida es diferente a 1.'
-                        );
-                    }
-                    break;
-                case 'CE':
-                    // 1. Validar que la unidad de medida sea igual a 1
-                    if ($ageUnit !== '1') {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_004',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo unidad de medida es diferente a 1.'
-                        );
-                    }
-                    break;
-                case 'TI':
-                    // 1. Validar que el número de identificación sea numérico
-                    if (! empty($idNumber) && ! ctype_digit($idNumber)) {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_005',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo número de identificación debe ser numérico.'
-                        );
-                    }
+        // -----------------------------------------------------------
+        // VALIDACIÓN NÚMERO ID (Columna 2)
+        // -----------------------------------------------------------
+        $rules = [
+            'CC' => ['numeric' => true,  'max' => 10, 'errNum' => 'FILE_US_ERROR_002', 'errLen' => 'FILE_US_ERROR_009'],
+            'TI' => ['numeric' => true,  'max' => 11, 'errNum' => 'FILE_US_ERROR_005', 'errLen' => 'FILE_US_ERROR_018'],
+            'CE' => ['numeric' => false, 'max' => 6,  'errNum' => null,                'errLen' => 'FILE_US_ERROR_010'],
+            'CD' => ['numeric' => false, 'max' => 16, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_011'],
+            'PA' => ['numeric' => false, 'max' => 16, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_012'],
+            'SC' => ['numeric' => false, 'max' => 16, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_013'],
+            'PE' => ['numeric' => false, 'max' => 15, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_014'],
+            'RE' => ['numeric' => false, 'max' => 15, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_015'],
+            'RC' => ['numeric' => false, 'max' => 11, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_016'],
+            'CN' => ['numeric' => false, 'max' => 9,  'errNum' => null,                'errLen' => 'FILE_US_ERROR_019'],
+            'AS' => ['numeric' => false, 'max' => 10, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_020'],
+            'MS' => ['numeric' => false, 'max' => 12, 'errNum' => null,                'errLen' => 'FILE_US_ERROR_021'],
+        ];
 
-                    // 2. Validar que la unidad de medida sea igual a 1
-                    if ($ageUnit !== '1') {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_006',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo unidad de medida es diferente a 1.'
-                        );
-                    }
-                    break;
-                case 'CN':
-                    // 1. Validar que la unidad de medida sea igual a 3
-                    if ($ageUnit !== '3') {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_022',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo unidad de medida es diferente a 3.'
-                        );
-                    }
-                    break;
-                case 'AS':
-                    // 1. Validar que la unidad de medida sea igual a 1
-                    if ($ageUnit !== '1') {
-                        ErrorCollector::addError(
-                            $keyErrorRedis,
-                            'FILE_US_ERROR_007',
-                            'R',
-                            null,
-                            $fileName,
-                            $rowNumber,
-                            $titleColumn[0],
-                            $rowData[0],
-                            'El campo unidad de medida es diferente a 1.'
-                        );
-                    }
-                    break;
+        if (isset($rules[$tipoId])) {
+            $rule = $rules[$tipoId];
+
+            // Validar numérico
+            if ($rule['numeric'] && !empty($numId) && !ctype_digit($numId)) {
+                self::logError(
+                    $batchId,
+                    $rowNumber,
+                    $fileName,
+                    $data,
+                    $rule['errNum'],
+                    "El valor debe ser numérico.",
+                    $cols[1],
+                    $numId
+                );
+            }
+            // Validar longitud
+            if (strlen($numId) > $rule['max']) {
+                self::logError(
+                    $batchId,
+                    $rowNumber,
+                    $fileName,
+                    $data,
+                    $rule['errLen'],
+                    "Longitud excede el máximo permitido ({$rule['max']}).",
+                    $cols[1],
+                    $numId
+                );
             }
         }
 
-        // Validar Número de identificación del usuario del sistema
-        if ($rowData[0] == 'CC' && ! ctype_digit($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_008',
-                'R',
-                null,
-                $fileName,
+        // Validación TI (extra)
+        if ($tipoId == 'TI' && !ctype_digit($numId) && !empty($numId)) {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado no es un valor numerico.'
-            );
-        }
-
-        if ($rowData[0] == 'CC' && strlen($rowData[1]) > 10) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_009',
-                'R',
-                null,
                 $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 10 caracteres.'
-            );
-        }
-
-        if ($rowData[0] == 'CE' && strlen($rowData[1]) > 6) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_010',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 6 caracteres.'
-            );
-        }
-
-        if ($rowData[0] == 'CD' && strlen($rowData[1]) > 16) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_011',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 16 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'PA' && strlen($rowData[1]) > 16) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_012',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 16 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'SC' && strlen($rowData[1]) > 16) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_013',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 16 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'PE' && strlen($rowData[1]) > 15) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_014',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 15 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'RE' && strlen($rowData[1]) > 15) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_015',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 15 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'RC' && strlen($rowData[1]) > 11) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_016',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 11 caracteres.'
-            );
-        }
-
-        if ($rowData[0] == 'TI' && ! ctype_digit($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
+                $data,
                 'FILE_US_ERROR_017',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado no es un valor numerico.'
+                "El valor debe ser numérico.",
+                $cols[1],
+                $numId
             );
         }
 
-        if ($rowData[0] == 'TI' && strlen($rowData[1]) > 11) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_018',
-                'R',
-                null,
-                $fileName,
+        // -----------------------------------------------------------
+        // VALIDACIÓN EDAD (Columna 9)
+        // -----------------------------------------------------------
+        if ($edad === '') {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 11 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'CN' && strlen($rowData[1]) > 9) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_019',
-                'R',
-                null,
                 $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 9 caracteres.'
-            );
-        }
-
-        if ($rowData[0] == 'AS' && strlen($rowData[1]) > 10) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_020',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 10 caracteres.'
-            );
-        }
-        if ($rowData[0] == 'MS' && strlen($rowData[1]) > 12) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_021',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado contiene mas de 12 caracteres.'
-            );
-        }
-
-        // validar Tipo de usuario
-        $allowedTypes = [1, 2, 3, 4, 5, 6, 7, 8];
-        if (! in_array($rowData[3], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_023',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[3],
-                $rowData[3],
-                'El dato registrado no es un valor permitido.'
-            );
-        }
-
-        // Validar Primer apellido del usuario
-        if (empty($rowData[4])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_024',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[4],
-                $rowData[4],
-                'El primer apellido es un dato obligatorio.'
-            );
-        }
-
-        // validar Primer nombre del usuario
-        if (empty($rowData[6])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_025',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[6],
-                $rowData[6],
-                'El primer apellido es un dato obligatorio.'
-            );
-        }
-
-        // validar Edad
-        if (empty($rowData[8])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
+                $data,
                 'FILE_US_ERROR_026',
-                'R',
-                null,
-                $fileName,
+                "El dato edad es obligatorio.",
+                $cols[8],
+                ''
+            );
+        } elseif (!ctype_digit($edad)) {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[8],
-                $rowData[8],
-                'El dato edad es obligatorio.'
+                $fileName,
+                $data,
+                'FILE_US_ERROR_AGE',
+                "La edad debe ser un número.",
+                $cols[8],
+                $edad
             );
         }
 
-        // validar Unidad de medida de la edad
-        $allowedTypes = [1, 2, 3];
-        if (! in_array($rowData[9], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_028',
-                'R',
-                null,
-                $fileName,
+        // -----------------------------------------------------------
+        // VALIDACIÓN UNIDAD MEDIDA (Columna 10)
+        // -----------------------------------------------------------
+        if ($unidad === '') {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[9],
-                $rowData[9],
-                'El dato edad es obligatorio.'
-            );
-        }
-
-        // validar Unidad de medida de la edad
-        if (empty($rowData[9])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
+                $fileName,
+                $data,
                 'FILE_US_ERROR_029',
-                'R',
-                null,
-                $fileName,
+                "El registro del dato es obligatorio.",
+                $cols[9],
+                ''
+            );
+        } elseif (!in_array($unidad, ['1', '2', '3'])) {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[9],
-                $rowData[9],
-                'El registro del dato es obligatorio.'
+                $fileName,
+                $data,
+                'FILE_US_ERROR_028',
+                "Dato inválido (Permitido: 1, 2, 3).",
+                $cols[9],
+                $unidad
             );
         }
 
-        // validar Sexo
-        if (empty($rowData[10])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
+        // Reglas cruzadas (Unidad vs Tipo ID)
+        if (in_array($tipoId, ['CC', 'CE', 'AS']) && $unidad !== '1') {
+            $code = ($tipoId == 'CC') ? 'FILE_US_ERROR_003' : (($tipoId == 'CE') ? 'FILE_US_ERROR_004' : 'FILE_US_ERROR_007');
+
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                $code,
+                "El campo unidad de medida es diferente a 1.",
+                $cols[9],
+                $unidad
+            );
+        }
+
+        if ($tipoId == 'TI' && $unidad !== '1') {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                'FILE_US_ERROR_006',
+                "El campo unidad de medida es diferente a 1.",
+                $cols[9],
+                $unidad
+            );
+        }
+
+        if ($tipoId === 'CN' && $unidad !== '3') {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                'FILE_US_ERROR_022',
+                "El campo unidad de medida es diferente a 3.",
+                $cols[9],
+                $unidad
+            );
+        }
+
+        // -----------------------------------------------------------
+        // VALIDACIÓN TIPO USUARIO (Columna 4)
+        // -----------------------------------------------------------
+        if (!in_array($tipoUsu, ['1', '2', '3', '4', '5', '6', '7', '8'])) {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                'FILE_US_ERROR_023',
+                "El dato registrado no es un valor permitido.",
+                $cols[3],
+                $tipoUsu
+            );
+        }
+
+        // -----------------------------------------------------------
+        // VALIDACIÓN APELLIDOS Y NOMBRES (Columnas 5 y 7)
+        // -----------------------------------------------------------
+        if ($ape1 === '') {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                'FILE_US_ERROR_024',
+                "El primer apellido es un dato obligatorio.",
+                $cols[4],
+                ''
+            );
+        }
+        if ($nom1 === '') {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                'FILE_US_ERROR_025',
+                "El primer nombre es un dato obligatorio.",
+                $cols[6],
+                ''
+            );
+        }
+
+        // -----------------------------------------------------------
+        // VALIDACIÓN SEXO (Columna 11)
+        // -----------------------------------------------------------
+        if ($sexo === '') {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
                 'FILE_US_ERROR_030',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[10],
-                $rowData[10],
-                'El registro del dato es obligatorio.'
+                "El registro del dato es obligatorio.",
+                $cols[10],
+                ''
             );
-        }
-        $allowedTypes = ['M', 'F'];
-        if (! in_array($rowData[10], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
+        } elseif (!in_array($sexo, ['M', 'F'])) {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
                 'FILE_US_ERROR_034',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[10],
-                $rowData[10],
-                'El registro del dato es obligatorio.'
+                "Dato inválido.",
+                $cols[10],
+                $sexo
             );
         }
 
-        // validar Código del departamento de residencia habitual
-        if (empty($rowData[11])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
+        // -----------------------------------------------------------
+        // VALIDACIÓN UBICACIÓN (Columnas 12, 13, 14)
+        // -----------------------------------------------------------
+        if (empty($dep)) {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
                 'FILE_US_ERROR_032',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[11],
-                $rowData[11],
-                'El registro del dato es obligatorio.'
+                "El registro del dato es obligatorio.",
+                $cols[11],
+                ''
             );
         }
-        // validar Código del municipio de residencia habitual
-        if (empty($rowData[12])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_033',
-                'R',
-                null,
-                $fileName,
+        if (empty($mun)) {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[12],
-                $rowData[12],
-                'El registro del dato es obligatorio.'
-            );
-        }
-        // validar Zona de residencia habitual
-        $allowedTypes = ['U', 'R'];
-        if (! in_array($rowData[13], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_033',
-                'R',
-                null,
                 $fileName,
-                $rowNumber,
-                $titleColumn[13],
-                $rowData[13],
-                'El dato registrado no es un valor permitido.'
+                $data,
+                'FILE_US_ERROR_033',
+                "El registro del dato es obligatorio.",
+                $cols[12],
+                ''
             );
         }
 
-        // validar Código del municipio de residencia habitual
-        if (empty($rowData[13])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_US_ERROR_033',
-                'R',
-                null,
-                $fileName,
+        if ($zona === '') {
+            self::logError(
+                $batchId,
                 $rowNumber,
-                $titleColumn[13],
-                $rowData[13],
-                'El registro del dato es obligatorio.'
+                $fileName,
+                $data,
+                'FILE_US_ERROR_033',
+                "El registro del dato es obligatorio.",
+                $cols[13],
+                ''
+            );
+        } elseif (!in_array($zona, ['U', 'R'])) {
+            self::logError(
+                $batchId,
+                $rowNumber,
+                $fileName,
+                $data,
+                'FILE_US_ERROR_033',
+                "El dato registrado no es un valor permitido.",
+                $cols[13],
+                $zona
             );
         }
+    }
 
-        // logMessage(ErrorCollector::getErrors($keyErrorRedis));
+    /**
+     * Helper privado ajustado a tu clase ErrorCollector real.
+     */
+    private static function logError($batchId, $row, $fileName, $data, $code, $msg, $colTitle, $val)
+    {
+
+        // Preparamos la data original incluyendo el nombre del archivo para no perder ese dato
+        $debugData = [
+            'file' => $fileName,
+            'code' => $code, // Guardamos el código aquí si no hay columna en DB para él
+            'row_data' => $data
+        ];
+
+        // Llamada exacta a tu firma:
+        // addError($batchId, $row, $colName, $msg, $type, $val, $originalData)
+
+        ErrorCollector::addError(
+            $batchId,           // 1. batchId
+            $row,               // 2. rowNumber
+            $colTitle,          // 3. columnName (ej: "Columna 1: Tipo...")
+            "[$code] $msg",     // 4. errorMessage (Concatenamos el código: "[FILE_001] Error...")
+            'R',                // 5. errorType
+            $val,               // 6. errorValue
+            json_encode($debugData) // 7. originalData (JSON)
+        );
     }
 }

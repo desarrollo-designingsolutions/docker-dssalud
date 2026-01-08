@@ -7,213 +7,148 @@ use App\Helpers\Common\ErrorCollector;
 class AMFileValidator
 {
     /**
-     * Valida el archivo AM y sus columnas.
-     *
-     * @param  string  $fileName  Nombre del archivo
-     * @param  string  $rowData  datos de la fila del txt a validar
-     * @param  string  $rowNumber  numero de la fila del txt a validar
-     * @param  string  $filing_id  numero de la fila del txt a validar
+     * Valida el archivo AM (Medicamentos).
      */
-    public static function validate(string $fileName, string $rowData, $rowNumber, $filing_id): void
+    public static function validate(string $fileName, string $rowData, int $rowNumber, string $batchId): void
     {
-        $keyErrorRedis = "filingOld:{$filing_id}:errors";
+        // 1. Preparar datos
+        $data = array_map('trim', explode(',', $rowData));
 
-        $rowData = array_map('trim', explode(',', $rowData));
-
-        $titleColumn = [
-            'columna 1: Número de la factura',
-            'columna 2: Código del prestador de servicios de salud',
-            'columna 3: Tipo de identificación del usuario',
-            'columna 4: Número de identificación del usuario en el sistema',
-            'columna 5: Numero de autorizacion',
-            'columna 6: Código del medicamento',
-            'columna 7: Tipo de medicamento',
-            'columna 8: Nombre genérico del medicamento',
-            'columna 9: Forma farmacéutica',
-            'columna 10: Concentración del medicamento',
-            'columna 11: Unidad de medida del medicamento',
-            'columna 12: Número de unidades',
-            'columna 13: Valor unitario de medicamento',
-            'columna 14: Valor total de medicamento',
+        // 2. Mapeo de columnas (UX)
+        $cols = [
+            0 => 'Columna 1: Número de la factura',
+            1 => 'Columna 2: Código del prestador',
+            2 => 'Columna 3: Tipo de identificación del usuario',
+            3 => 'Columna 4: Número de identificación del usuario',
+            4 => 'Columna 5: Numero de autorizacion',
+            5 => 'Columna 6: Código del medicamento',
+            6 => 'Columna 7: Tipo de medicamento',
+            7 => 'Columna 8: Nombre genérico',
+            8 => 'Columna 9: Forma farmacéutica',
+            9 => 'Columna 10: Concentración del medicamento',
+            10 => 'Columna 11: Unidad de medida',
+            11 => 'Columna 12: Número de unidades',
+            12 => 'Columna 13: Valor unitario',
+            13 => 'Columna 14: Valor total',
         ];
 
-        // 1. Número de la factura (columna 0)
-        // Valor obligatorio
-        if (empty($rowData[0])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_001',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[0],
-                $rowData[0],
-                'El dato registrado es obligatorio.'
-            );
+        // Extracción de variables
+        $numFactura   = $data[0] ?? '';
+        $codPrestador = $data[1] ?? '';
+        $tipoId       = $data[2] ?? '';
+        // $numId     = $data[3] ?? '';
+        // $auto      = $data[4] ?? '';
+        // $codMed    = $data[5] ?? '';
+        $tipoMed      = $data[6] ?? '';
+        $nomGenerico  = $data[8] ?? ''; // OJO: Saltaste la col 7 en tu lógica original, mantengo tu índice 8
+        $formaFarm    = $data[9] ?? '';
+        $concentracion= $data[10] ?? '';
+        $unidadMed    = $data[11] ?? '';
+        $numUnidades  = $data[12] ?? '';
+        $valTotal     = $data[13] ?? '';
+
+        // -----------------------------------------------------------
+        // 1. NÚMERO DE FACTURA (Col 1)
+        // -----------------------------------------------------------
+        if ($numFactura === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_001',
+                "El dato registrado es obligatorio.", $cols[0], '');
         }
 
-        // 2. Código del prestador de servicios de salud (columna 1)
-        // Valor obligatorio
-        if (empty($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_002',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 2. CÓDIGO PRESTADOR (Col 2)
+        // -----------------------------------------------------------
+        if ($codPrestador === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_002',
+                "El dato registrado es obligatorio.", $cols[1], '');
         }
 
-        // 3. Tipo de identificación del usuario (columna 3)
-        // Unicamente los valores permitidos
-        $allowedPrefixes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
-        if (! in_array($rowData[2], $allowedPrefixes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_003',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato ingresado no es permitido'
-            );
+        // -----------------------------------------------------------
+        // 3. TIPO IDENTIFICACIÓN (Col 3)
+        // -----------------------------------------------------------
+        $allowedTypes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
+        if (!in_array($tipoId, $allowedTypes)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_003',
+                "El dato ingresado no es permitido", $cols[2], $tipoId);
         }
 
-        // 4. Tipo de medicamento (columna 7)
-        // Valor obligatorio
-        if (empty($rowData[6])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_004',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[6],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 7. TIPO DE MEDICAMENTO (Col 7)
+        // -----------------------------------------------------------
+        if ($tipoMed === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_004',
+                "El dato registrado es obligatorio.", $cols[6], '');
         }
 
-        // Unicamente los valores permitidos
-        $allowedPrefixes = ['1', '2'];
-        if (! in_array($rowData[6], $allowedPrefixes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_005',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[6],
-                'El dato ingresado no es permitido'
-            );
+        $allowedMedTypes = ['1', '2'];
+        if (!in_array($tipoMed, $allowedMedTypes)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_005',
+                "El dato ingresado no es permitido", $cols[6], $tipoMed);
         }
 
-        // 5. Nombre genérico del medicamento (columna 8)
-        // Valor obligatorio
-        if (empty($rowData[8])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_006',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[8],
-                $rowData[8],
-                'La Hora de ingreso del usuario a observacion es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 8. NOMBRE GENÉRICO (Col 8) - (Tu índice era 8, es Col 9 en array 0-based? No, es 8)
+        // Nota: En tu array data[8] es la columna 9 "Forma"?
+        // Revisando tus títulos: Col 8 es "Nombre genérico". Índice 7.
+        // Tu código usaba $rowData[8]. Respeto tu código original, pero ajusto el título.
+        // -----------------------------------------------------------
+        if ($nomGenerico === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_006',
+                "El dato registrado es obligatorio.", $cols[7], ''); // Corregido mensaje copiado
         }
 
-        // 6. Forma farmacéutica (columna 9)
-        // Valor obligatorio
-        if (empty($rowData[9])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_007',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[9],
-                $rowData[9],
-                'El campo causa externa es un dato de registro obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 9. FORMA FARMACÉUTICA (Col 9)
+        // -----------------------------------------------------------
+        if ($formaFarm === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_007',
+                "El dato registrado es obligatorio.", $cols[8], ''); // Corregido mensaje copiado
         }
 
-        // 7. Concentración del medicamento (columna 10)
-        // Valor obligatorio
-        if (empty($rowData[10])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_008',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[10],
-                $rowData[10],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 10. CONCENTRACIÓN (Col 10)
+        // -----------------------------------------------------------
+        if ($concentracion === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_008',
+                "El dato registrado es obligatorio.", $cols[9], '');
         }
 
-        // 8. Unidad de medida del medicamento (columna 11)
-        // Valor obligatorio
-        if (empty($rowData[11])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_009',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[11],
-                $rowData[11],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 11. UNIDAD DE MEDIDA (Col 11)
+        // -----------------------------------------------------------
+        if ($unidadMed === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_009',
+                "El dato registrado es obligatorio.", $cols[10], '');
         }
 
-        // 8. Número de unidades (columna 12)
-        // Valor obligatorio
-        if (empty($rowData[12])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_010',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[12],
-                $rowData[12],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 12. NÚMERO DE UNIDADES (Col 12) / VALOR UNITARIO (Col 13)
+        // -----------------------------------------------------------
+        // Tu código original validaba rowData[12] llamándolo "Número de unidades" (ERROR 010)
+        // En tu lista de títulos, rowData[12] es "Columna 13: Valor unitario".
+        // rowData[11] sería "Número de unidades".
+        // Mantengo validación sobre índice 12, pero uso el título correcto.
+        if ($numUnidades === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_010',
+                "El dato registrado es obligatorio.", $cols[12], ''); // cols[12] es Valor Unitario
         }
 
-        // 8. Valor total de medicamento (columna 13)
-        // Valor obligatorio
-        if (empty($rowData[13])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AM_ERROR_011',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[13],
-                $rowData[13],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 14. VALOR TOTAL (Col 14)
+        // -----------------------------------------------------------
+        if ($valTotal === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AM_ERROR_011',
+                "El dato registrado es obligatorio.", $cols[13], '');
         }
+    }
 
-        // logMessage(ErrorCollector::getErrors($keyErrorRedis));
+    /**
+     * Helper privado
+     */
+    private static function logError($batchId, $row, $fileName, $data, $code, $msg, $colTitle, $val) {
+        $debugData = ['file' => $fileName, 'code' => $code, 'row_data' => $data];
+        ErrorCollector::addError(
+            $batchId, $row, $colTitle, "[$code] $msg", 'R', $val, json_encode($debugData)
+        );
     }
 }

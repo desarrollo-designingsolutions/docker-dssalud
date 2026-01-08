@@ -7,201 +7,146 @@ use App\Helpers\Common\ErrorCollector;
 class AHFileValidator
 {
     /**
-     * Valida el archivo AH y sus columnas.
-     *
-     * @param  string  $fileName  Nombre del archivo
-     * @param  string  $rowData  datos de la fila del txt a validar
-     * @param  string  $rowNumber  numero de la fila del txt a validar
-     * @param  string  $filing_id  numero de la fila del txt a validar
+     * Valida el archivo AH (Hospitalización).
      */
-    public static function validate(string $fileName, string $rowData, $rowNumber, $filing_id): void
+    public static function validate(string $fileName, string $rowData, int $rowNumber, string $batchId): void
     {
-        $keyErrorRedis = "filingOld:{$filing_id}:errors";
+        // 1. Preparar datos
+        $data = array_map('trim', explode(',', $rowData));
 
-        $rowData = array_map('trim', explode(',', $rowData));
-
-        $titleColumn = [
-            'columna 1: Número de la factura',
-            'columna 2: Código del prestador de servicios de salud',
-            'columna 3: Tipo de identificación del usuario',
-            'columna 4: Número de identificación del usuario en el sistema',
-            'columna 5: Via de ingreso a la institucion',
-            'columna 6: Fecha de ingreso del usuario a la institución',
-            'columna 7: Hora de ingreso del usuario a la Institución',
-            'columna 8: Numero de autorizacion',
-            'columna 9: Causa externa',
-            'columna 10: Diagnostico principal de ingreso',
-            'columna 11: Diagnóstico principal de egreso',
-            'columna 12: Diagnóstico relacionado Nro. 1 de egreso',
-            'columna 13: Diagnóstico relacionado Nro. 2 de egreso',
-            'columna 14: Diagnóstico relacionado Nro. 3 de egreso',
-            'columna 15: Diagnóstico de la complicacion',
-            'columna 16: Estado a la salida',
-            'columna 17: Diagnóstico de la causa básica de muerte',
-            'columna 18: Fecha de egreso del usuario a la institución',
-            'columna 19: Hora de egreso del usuario de la institución',
+        // 2. Mapeo de columnas (UX)
+        $cols = [
+            0 => 'Columna 1: Número de la factura',
+            1 => 'Columna 2: Código del prestador',
+            2 => 'Columna 3: Tipo de identificación del usuario',
+            3 => 'Columna 4: Número de identificación del usuario',
+            4 => 'Columna 5: Via de ingreso',
+            5 => 'Columna 6: Fecha ingreso',
+            6 => 'Columna 7: Hora ingreso',
+            7 => 'Columna 8: Numero de autorizacion',
+            8 => 'Columna 9: Causa externa',
+            9 => 'Columna 10: Diagnostico ingreso',
+            10 => 'Columna 11: Diagnóstico egreso',
+            11 => 'Columna 12: Diagnóstico rel. 1',
+            12 => 'Columna 13: Diagnóstico rel. 2',
+            13 => 'Columna 14: Diagnóstico rel. 3',
+            14 => 'Columna 15: Complicación',
+            15 => 'Columna 16: Estado a la salida',
+            16 => 'Columna 17: Causa básica de muerte',
+            17 => 'Columna 18: Fecha egreso',
+            18 => 'Columna 19: Hora egreso',
         ];
 
-        // 1. Número de la factura (columna 0)
-        // Valor obligatorio
-        if (empty($rowData[0])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_001',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[0],
-                $rowData[0],
-                'El dato registrado es obligatorio.'
-            );
+        // Extracción de variables
+        $numFactura  = $data[0] ?? '';
+        $codPrestador = $data[1] ?? '';
+        $tipoId      = $data[2] ?? '';
+        $viaIngreso  = $data[4] ?? '';
+        $fecIngreso  = $data[5] ?? '';
+        $horaIngreso = $data[6] ?? '';
+        $causaExt    = $data[8] ?? ''; // Ojo: En tu array original validabas rowData[7], pero según tus títulos es la col 9 (índice 8). Ajustado al índice real.
+        $diagIngreso = $data[9] ?? '';
+        $estado      = $data[15] ?? '';
+        $fecEgreso   = $data[17] ?? '';
+        $horaEgreso  = $data[18] ?? '';
+
+        // -----------------------------------------------------------
+        // 1. NÚMERO DE FACTURA (Col 1)
+        // -----------------------------------------------------------
+        if ($numFactura === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_001',
+                "El dato registrado es obligatorio.", $cols[0], '');
         }
 
-        // 2. Código del prestador de servicios de salud (columna 1)
-        // Valor obligatorio
-        if (empty($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_002',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 2. CÓDIGO PRESTADOR (Col 2)
+        // -----------------------------------------------------------
+        if ($codPrestador === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_002',
+                "El dato registrado es obligatorio.", $cols[1], '');
         }
 
-        // 3. Via de ingreso a la institucion (columna 4)
-        // Valor obligatorio
-        if (empty($rowData[4])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_003',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[4],
-                $rowData[4],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 3. TIPO IDENTIFICACIÓN (Col 3)
+        // -----------------------------------------------------------
+        $allowedTypes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
+        if ($tipoId === '') {
+             // Validamos obligatorio si aplica, tu código original no tenía el empty explícito aquí, pero tenía el in_array
+        }
+        if (!in_array($tipoId, $allowedTypes)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_004',
+                "El dato ingresado no es permitido", $cols[2], $tipoId);
         }
 
-        // Unicamente los valores permitidos
-        $allowedPrefixes = ['1', '2', '3', '4'];
-        if (! in_array($rowData[2], $allowedPrefixes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_004',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato ingresado no es permitido'
-            );
+        // -----------------------------------------------------------
+        // 5. VÍA DE INGRESO (Col 5)
+        // -----------------------------------------------------------
+        if ($viaIngreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_003',
+                "El dato registrado es obligatorio.", $cols[4], '');
         }
 
-        // 4. Fecha de ingreso del usuario a la institución (columna 5)
-        // Valor obligatorio
-        if (empty($rowData[5])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_005',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[5],
-                $rowData[5],
-                'La Fecha de ingreso del usuario a la institución es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 6. FECHA INGRESO (Col 6)
+        // -----------------------------------------------------------
+        if ($fecIngreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_005',
+                "La Fecha de ingreso del usuario a la institución es un dato obligatorio.", $cols[5], '');
+        } elseif (!self::isValidDate($fecIngreso)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_005_F',
+                "Formato fecha inválido.", $cols[5], $fecIngreso);
         }
 
-        // 5. Hora de ingreso del usuario a la Institución (columna 6)
-        // Valor obligatorio
-        if (empty($rowData[6])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_006',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[6],
-                $rowData[6],
-                'La Hora de ingreso del usuario a observacion es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 7. HORA INGRESO (Col 7)
+        // -----------------------------------------------------------
+        if ($horaIngreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_006',
+                "La Hora de ingreso del usuario a la Institución es un dato obligatorio.", $cols[6], '');
         }
 
-        // 6. Causa externa (columna 7)
-        // Valor obligatorio
-        if (empty($rowData[7])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_007',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[7],
-                'El campo causa externa es un dato de registro obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 9. CAUSA EXTERNA (Col 9)
+        // -----------------------------------------------------------
+        if ($causaExt === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_007',
+                "El dato registrado es obligatorio.", $cols[8], '');
         }
 
-        // Unicamente los valores permitidos
-        $allowedPrefixes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15'];
-        if (! in_array($rowData[2], $allowedPrefixes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_008',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato registrado no es una opción permitida.'
-            );
+
+        // -----------------------------------------------------------
+        // 18. FECHA EGRESO (Col 18)
+        // -----------------------------------------------------------
+        if ($fecEgreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_009',
+                "El dato registrado es obligatorio.", $cols[17], '');
+        } elseif (!self::isValidDate($fecEgreso)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_009_F',
+                "Formato fecha inválido.", $cols[17], $fecEgreso);
         }
 
-        // 7. Fecha de egreso del usuario a la institución (columna 16)
-        // Valor obligatorio
-        if (empty($rowData[16])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_009',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[16],
-                $rowData[16],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 19. HORA EGRESO (Col 19)
+        // -----------------------------------------------------------
+        if ($horaEgreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AH_ERROR_010',
+                "El dato registrado es obligatorio.", $cols[18], '');
         }
+    }
 
-        // 8. Hora de egreso del usuario de la institución (columna 17)
-        // Valor obligatorio
-        if (empty($rowData[17])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AP_ERROR_010',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[17],
-                $rowData[17],
-                'El dato registrado es obligatorio.'
-            );
-        }
+    /**
+     * Helper privado
+     */
+    private static function logError($batchId, $row, $fileName, $data, $code, $msg, $colTitle, $val) {
+        $debugData = ['file' => $fileName, 'code' => $code, 'row_data' => $data];
+        ErrorCollector::addError(
+            $batchId, $row, $colTitle, "[$code] $msg", 'R', $val, json_encode($debugData)
+        );
+    }
 
-        // logMessage(ErrorCollector::getErrors($keyErrorRedis));
+    private static function isValidDate(string $date): bool {
+        $parts = explode('/', $date);
+        if (count($parts) !== 3) return false;
+        return checkdate((int) $parts[1], (int) $parts[0], (int) $parts[2]);
     }
 }

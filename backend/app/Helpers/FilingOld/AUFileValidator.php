@@ -7,205 +7,196 @@ use App\Helpers\Common\ErrorCollector;
 class AUFileValidator
 {
     /**
-     * Valida el archivo AU y sus columnas.
-     *
-     * @param  string  $fileName  Nombre del archivo
-     * @param  string  $rowData  datos de la fila del txt a validar
-     * @param  string  $rowNumber  numero de la fila del txt a validar
-     * @param  string  $filing_id  numero de la fila del txt a validar
+     * Valida el archivo AU (Urgencias con Observación).
      */
-    public static function validate(string $fileName, string $rowData, $rowNumber, $filing_id): void
+    public static function validate(string $fileName, string $rowData, int $rowNumber, string $batchId): void
     {
-        $keyErrorRedis = "filingOld:{$filing_id}:errors";
+        // 1. Preparar datos
+        $data = array_map('trim', explode(',', $rowData));
 
-        $rowData = array_map('trim', explode(',', $rowData));
-
-        $titleColumn = [
-            'columna 1: Número de la factura',
-            'columna 2: Código del prestador de servicios de salud',
-            'columna 3: Tipo de identificación del usuario',
-            'columna 4: Número de identificación del usuario en el sistema',
-            'columna 5: Fecha de ingreso del usuario a observacion',
-            'columna 6: Hora de ingreso del usuario a observacion',
-            'columna 7: Numero de autorizacion',
-            'columna 8: Causa externa',
-            'columna 9: Diagnostico a la salida',
-            'columna 10: Diagnóstico relacionado Nro. 1 a la salida',
-            'columna 11: Diagnóstico relacionado Nro. 2 a la salida',
-            'columna 12: Diagnóstico relacionado Nro. 3 a la salida',
-            'columna 13: Destino del usuario a la salida de observación',
-            'columna 14: Estado a la salida',
-            'columna 15: Causa básica de muerte en urgencias',
-            'columna 16: Fecha de la salida del usuario en observación',
-            'columna 17: Hora de la salida del usuario en observación',
+        // 2. Mapeo de columnas (UX)
+        $cols = [
+            0 => 'Columna 1: Número de la factura',
+            1 => 'Columna 2: Código del prestador',
+            2 => 'Columna 3: Tipo de identificación del usuario',
+            3 => 'Columna 4: Número de identificación del usuario',
+            4 => 'Columna 5: Fecha ingreso observación',
+            5 => 'Columna 6: Hora ingreso observación',
+            6 => 'Columna 7: Numero de autorizacion',
+            7 => 'Columna 8: Causa externa',
+            8 => 'Columna 9: Diagnostico a la salida',
+            9 => 'Columna 10: Diagnóstico rel. 1',
+            10 => 'Columna 11: Diagnóstico rel. 2',
+            11 => 'Columna 12: Diagnóstico rel. 3',
+            12 => 'Columna 13: Destino a la salida',
+            13 => 'Columna 14: Estado a la salida',
+            14 => 'Columna 15: Causa muerte',
+            15 => 'Columna 16: Fecha salida observación',
+            16 => 'Columna 17: Hora salida observación',
         ];
 
-        // VALIDAR Número de la factura
-        if (empty($rowData[0])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AU_ERROR_001',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[0],
-                $rowData[0],
-                'El dato registrado es obligatorio.'
-            );
+        // Extracción de variables
+        $numFactura  = $data[0] ?? '';
+        $codPrestador = $data[1] ?? '';
+        $tipoId      = $data[2] ?? '';
+        $fecIngreso  = $data[4] ?? '';
+        $horaIngreso = $data[5] ?? '';
+        $causaExt    = $data[7] ?? '';
+        $diagSalida  = $data[8] ?? '';
+        $destino     = $data[12] ?? '';
+        $estado      = $data[13] ?? '';
+        $causaMuerte = $data[14] ?? '';
+        $fecSalida   = $data[15] ?? '';
+        $horaSalida  = $data[16] ?? '';
+
+        // -----------------------------------------------------------
+        // 1. NÚMERO DE FACTURA (Col 1)
+        // -----------------------------------------------------------
+        if ($numFactura === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_001',
+                "Dato obligatorio.", $cols[0], '');
         }
 
-        // VALIDAR Código del prestador de servicios de salud
-        if (empty($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AU_ERROR_002',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El codigo de prestador de servicio es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 2. CÓDIGO PRESTADOR (Col 2)
+        // -----------------------------------------------------------
+        if ($codPrestador === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_002',
+                "Dato obligatorio.", $cols[1], '');
         }
 
-        // VALIDAR Tipo de identificación del usuario
+        // -----------------------------------------------------------
+        // 3. TIPO IDENTIFICACIÓN (Col 3)
+        // -----------------------------------------------------------
         $allowedTypes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
-        if (! in_array($rowData[2], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AU_ERROR_003',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato registrado no es un valor permitido.'
-            );
+        if (!in_array($tipoId, $allowedTypes)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_003',
+                "Valor no permitido.", $cols[2], $tipoId);
         }
 
-        // VALIDAR Fecha de ingreso del usuario a observacion
-        if (empty($rowData[4])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AU_ERROR_004',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[4],
-                $rowData[4],
-                'El dato registrado no es un valor permitido.'
-            );
+        // -----------------------------------------------------------
+        // 5. FECHA INGRESO (Col 5)
+        // -----------------------------------------------------------
+        if ($fecIngreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_004',
+                "Dato obligatorio.", $cols[4], '');
+        } elseif (!self::isValidDate($fecIngreso)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_004_F',
+                "Formato fecha inválido.", $cols[4], $fecIngreso);
         }
 
-        // VALIDAR Hora de ingreso del usuario a observacion
-        if (empty($rowData[5])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AU_ERROR_005',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[5],
-                $rowData[5],
-                'La Hora de ingreso del usuario a observacion es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 6. HORA INGRESO (Col 6)
+        // -----------------------------------------------------------
+        if ($horaIngreso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_005',
+                "Dato obligatorio.", $cols[5], '');
+        } elseif (!self::isValidTime($horaIngreso)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_005_F',
+                "Formato hora inválido (HH:MM).", $cols[5], $horaIngreso);
         }
 
-        // VALIDAR Causa externa
-        $allowedTypes = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15'];
-        if (! in_array($rowData[7], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_006',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[7],
-                'El valor registrado no es un valor permitido.'
-            );
+        // -----------------------------------------------------------
+        // 8. CAUSA EXTERNA (Col 8)
+        // -----------------------------------------------------------
+        $allowedCausa = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15'];
+        if ($causaExt === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_007',
+                "Dato obligatorio.", $cols[7], '');
+        } elseif (!in_array($causaExt, $allowedCausa)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_006',
+                "Valor no permitido.", $cols[7], $causaExt);
         }
 
-        if (empty($rowData[7])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_007',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[7],
-                'El codigo de causa externa es un valor obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 9. DIAGNÓSTICO SALIDA (Col 9)
+        // -----------------------------------------------------------
+        if ($diagSalida === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_008',
+                "Dato obligatorio.", $cols[8], '');
         }
 
-        // VALIDAR Diagnostico a la salida
-        if (empty($rowData[8])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_008',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[8],
-                $rowData[8],
-                'El diagnostico de salida es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 13. DESTINO SALIDA (Col 13)
+        // -----------------------------------------------------------
+        // 1=Alta, 2=Remisión, 3=Casa, etc. (Validar según norma vigente si tienes la lista, aquí solo empty)
+        if ($destino === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_009',
+                "Dato obligatorio.", $cols[12], '');
+        } elseif (!in_array($destino, ['1','2','3','4','5'])) { // Asumiendo valores estándar
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_009_V',
+                "Valor no permitido.", $cols[12], $destino);
         }
 
-        // VALIDAR Destino del usuario a la salida de observación
-        if (empty($rowData[12])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_009',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[12],
-                $rowData[12],
-                'El Destino del usuario a la salida de observación es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 14. ESTADO SALIDA (Col 14)
+        // -----------------------------------------------------------
+        // 1=Vivo, 2=Muerto
+        if ($estado === '') {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_EST',
+                "Dato obligatorio.", $cols[13], '');
+        } elseif (!in_array($estado, ['1', '2'])) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_EST_V',
+                "Valor no permitido (1=Vivo, 2=Muerto).", $cols[13], $estado);
         }
 
-        // VALIDAR Fecha de la salida del usuario en observación
-        if (empty($rowData[15])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_010',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[15],
-                $rowData[15],
-                'El Destino del usuario a la salida de observación es un dato obligatorio.'
-            );
+        // Validación cruzada Estado vs Causa Muerte
+        if ($estado === '2' && $causaMuerte === '') {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_MUE',
+                "Si estado es Muerto, Causa Muerte es obligatoria.", $cols[14], '');
         }
 
-        // VALIDAR Hora de la salida del usuario en observación
-        if (empty($rowData[16])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_011',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[16],
-                $rowData[16],
-                'El Destino del usuario a la salida de observación es un dato obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 16. FECHA SALIDA (Col 16)
+        // -----------------------------------------------------------
+        if ($fecSalida === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_010',
+                "Dato obligatorio.", $cols[15], '');
+        } elseif (!self::isValidDate($fecSalida)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_010_F',
+                "Formato fecha inválido.", $cols[15], $fecSalida);
         }
 
-        // logMessage(ErrorCollector::getErrors($keyErrorRedis));
+        // Lógica Fechas (Ingreso <= Salida)
+        if (self::isValidDate($fecIngreso) && self::isValidDate($fecSalida)) {
+            $dIn = \DateTime::createFromFormat('d/m/Y', $fecIngreso);
+            $dOut = \DateTime::createFromFormat('d/m/Y', $fecSalida);
+            if ($dIn > $dOut) {
+                self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_DATE_SEQ',
+                    "Fecha Ingreso mayor a Salida.", $cols[15], "$fecIngreso > $fecSalida");
+            }
+        }
+
+        // -----------------------------------------------------------
+        // 17. HORA SALIDA (Col 17)
+        // -----------------------------------------------------------
+        if ($horaSalida === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_011',
+                "Dato obligatorio.", $cols[16], '');
+        } elseif (!self::isValidTime($horaSalida)) {
+             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AU_ERROR_011_F',
+                "Formato hora inválido.", $cols[16], $horaSalida);
+        }
+    }
+
+    /**
+     * Helper privado
+     */
+    private static function logError($batchId, $row, $fileName, $data, $code, $msg, $colTitle, $val) {
+        $debugData = ['file' => $fileName, 'code' => $code, 'row_data' => $data];
+        ErrorCollector::addError(
+            $batchId, $row, $colTitle, "[$code] $msg", 'R', $val, json_encode($debugData)
+        );
+    }
+
+    private static function isValidDate(string $date): bool {
+        $parts = explode('/', $date);
+        if (count($parts) !== 3) return false;
+        return checkdate((int) $parts[1], (int) $parts[0], (int) $parts[2]);
+    }
+
+    private static function isValidTime(string $time): bool {
+        // Formato HH:MM
+        return preg_match("/^(?:2[0-3]|[01][0-9]):[0-5][0-9]$/", $time);
     }
 }

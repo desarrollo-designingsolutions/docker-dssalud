@@ -7,198 +7,136 @@ use App\Helpers\Common\ErrorCollector;
 class ANFileValidator
 {
     /**
-     * Valida el archivo AN y sus columnas.
-     *
-     * @param  string  $fileName  Nombre del archivo
-     * @param  string  $rowData  datos de la fila del txt a validar
-     * @param  string  $rowNumber  numero de la fila del txt a validar
-     * @param  string  $filing_id  numero de la fila del txt a validar
+     * Valida el archivo AN (Recién Nacidos).
      */
-    public static function validate(string $fileName, string $rowData, $rowNumber, $filing_id): void
+    public static function validate(string $fileName, string $rowData, int $rowNumber, string $batchId): void
     {
-        $keyErrorRedis = "filingOld:{$filing_id}:errors";
+        // 1. Preparar datos
+        $data = array_map('trim', explode(',', $rowData));
 
-        $rowData = array_map('trim', explode(',', $rowData));
-
-        $titleColumn = [
-            'columna 1: Número de la factura',
-            'columna 2: Código del prestador de servicios de salud',
-            'columna 3: Tipo de identificación de la madre',
-            'columna 4: Numero de identificacion de la madre en el Sistema',
-            'columna 5: Fecha de nacimiento del recién nacido',
-            'columna 6: Hora de nacimiento',
-            'columna 7: Edad gestacional',
-            'columna 8: Control prenatal',
-            'columna 9: Sexo',
-            'columna 10: Peso',
-            'columna 11: Diagnóstico del recién nacido',
-            'columna 12: Causa básica de muerte',
-            'columna 13: Fecha de muerte del recién nacido',
-            'columna 14: Hora de muerte del recién nacido',
+        // 2. Mapeo de columnas (UX)
+        $cols = [
+            0 => 'Columna 1: Número de la factura',
+            1 => 'Columna 2: Código del prestador de servicios de salud',
+            2 => 'Columna 3: Tipo de identificación de la madre',
+            3 => 'Columna 4: Numero de identificacion de la madre en el Sistema',
+            4 => 'Columna 5: Fecha de nacimiento del recién nacido',
+            5 => 'Columna 6: Hora de nacimiento',
+            6 => 'Columna 7: Edad gestacional',
+            7 => 'Columna 8: Control prenatal',
+            8 => 'Columna 9: Sexo',
+            9 => 'Columna 10: Peso',
+            10 => 'Columna 11: Diagnóstico del recién nacido',
+            11 => 'Columna 12: Causa básica de muerte',
+            12 => 'Columna 13: Fecha de muerte del recién nacido',
+            13 => 'Columna 14: Hora de muerte del recién nacido',
         ];
 
-        // validar  Número de la factura
-        if (empty($rowData[0])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AN_ERROR_001',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[0],
-                $rowData[0],
-                'El dato registrado es obligatorio.'
-            );
-        }
-        // validar  Código del prestador de servicios de salud
-        if (empty($rowData[1])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AN_ERROR_002',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[1],
-                $rowData[1],
-                'El dato registrado es obligatorio.'
-            );
+        // Extracción de variables para legibilidad
+        $numFactura   = $data[0] ?? '';
+        $codPrestador = $data[1] ?? '';
+        $tipoIdMadre  = $data[2] ?? '';
+        // $numIdMadre = $data[3] ?? ''; // No tenía validación en tu código original
+        $fecNac       = $data[4] ?? '';
+        $horaNac      = $data[5] ?? '';
+        $edadGest     = $data[6] ?? '';
+        $ctrlPrenatal = $data[7] ?? '';
+        $sexo         = $data[8] ?? '';
+        $peso         = $data[9] ?? '';
+
+        // -----------------------------------------------------------
+        // 1. NÚMERO DE FACTURA (Col 1)
+        // -----------------------------------------------------------
+        if ($numFactura === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_001',
+                "El dato registrado es obligatorio.", $cols[0], '');
         }
 
-        // validar Tipo de identificación de la madre
+        // -----------------------------------------------------------
+        // 2. CÓDIGO PRESTADOR (Col 2)
+        // -----------------------------------------------------------
+        if ($codPrestador === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_002',
+                "El dato registrado es obligatorio.", $cols[1], '');
+        }
+
+        // -----------------------------------------------------------
+        // 3. TIPO IDENTIFICACIÓN MADRE (Col 3)
+        // -----------------------------------------------------------
         $allowedTypes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
-        if (! in_array($rowData[2], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_003',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[2],
-                $rowData[2],
-                'El dato registrado no es un valor permitido.'
-            );
+        if (!in_array($tipoIdMadre, $allowedTypes)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_003',
+                "El dato registrado no es un valor permitido.", $cols[2], $tipoIdMadre);
         }
 
-        // validar Fecha de nacimiento del recién nacido
-        if (empty($rowData[4])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_004',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[4],
-                $rowData[4],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 5. FECHA NACIMIENTO (Col 5)
+        // -----------------------------------------------------------
+        if ($fecNac === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_004',
+                "El dato registrado es obligatorio.", $cols[4], '');
         }
 
-        // validar Hora de nacimiento
-        if (empty($rowData[5])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_005',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[5],
-                $rowData[5],
-                'El dato registrado es obligatorio.'
-            );
-        }
-        // validar Edad gestacional
-        if (empty($rowData[6])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_006',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[6],
-                $rowData[6],
-                'El dato registrado es obligatorio.'
-            );
-        }
-        // validar Control prenatal
-        if (empty($rowData[7])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_007',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[7],
-                'El dato registrado es obligatorio.'
-            );
-        }
-        $allowedTypes = ['1', '2'];
-        if (! in_array($rowData[7], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_008',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[7],
-                $rowData[7],
-                'El dato registrado no es un valor permitido.'
-            );
+        // -----------------------------------------------------------
+        // 6. HORA NACIMIENTO (Col 6)
+        // -----------------------------------------------------------
+        if ($horaNac === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_005',
+                "El dato registrado es obligatorio.", $cols[5], '');
         }
 
-        // validar Sexo
-        if (empty($rowData[8])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_009',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[8],
-                $rowData[8],
-                'El dato registrado es obligatorio.'
-            );
+        // -----------------------------------------------------------
+        // 7. EDAD GESTACIONAL (Col 7)
+        // -----------------------------------------------------------
+        if ($edadGest === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_006',
+                "El dato registrado es obligatorio.", $cols[6], '');
         }
 
-        $allowedTypes = ['1', '2'];
-        if (! in_array($rowData[8], $allowedTypes)) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_010',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[8],
-                $rowData[8],
-                'El dato registrado no es un valor permitido.'
-            );
+        // -----------------------------------------------------------
+        // 8. CONTROL PRENATAL (Col 8)
+        // -----------------------------------------------------------
+        if ($ctrlPrenatal === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_007',
+                "El dato registrado es obligatorio.", $cols[7], '');
         }
 
-        // validar Peso
-        if (empty($rowData[9])) {
-            ErrorCollector::addError(
-                $keyErrorRedis,
-                'FILE_AC_ERROR_011',
-                'R',
-                null,
-                $fileName,
-                $rowNumber,
-                $titleColumn[9],
-                $rowData[9],
-                'El dato registrado es obligatorio.'
-            );
+        $allowedCtrl = ['1', '2'];
+        if (!in_array($ctrlPrenatal, $allowedCtrl)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_008',
+                "El dato registrado no es un valor permitido.", $cols[7], $ctrlPrenatal);
         }
 
-        // logMessage(ErrorCollector::getErrors($keyErrorRedis));
+        // -----------------------------------------------------------
+        // 9. SEXO (Col 9)
+        // -----------------------------------------------------------
+        if ($sexo === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_009',
+                "El dato registrado es obligatorio.", $cols[8], '');
+        }
+
+        $allowedSexo = ['1', '2']; // Mantenido según tu código original (numérico para AN?)
+        if (!in_array($sexo, $allowedSexo)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_010',
+                "El dato registrado no es un valor permitido.", $cols[8], $sexo);
+        }
+
+        // -----------------------------------------------------------
+        // 10. PESO (Col 10)
+        // -----------------------------------------------------------
+        if ($peso === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_AN_ERROR_011',
+                "El dato registrado es obligatorio.", $cols[9], '');
+        }
+    }
+
+    /**
+     * Helper privado
+     */
+    private static function logError($batchId, $row, $fileName, $data, $code, $msg, $colTitle, $val) {
+        $debugData = ['file' => $fileName, 'code' => $code, 'row_data' => $data];
+        ErrorCollector::addError(
+            $batchId, $row, $colTitle, "[$code] $msg", 'R', $val, json_encode($debugData)
+        );
     }
 }

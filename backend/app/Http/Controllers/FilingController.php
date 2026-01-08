@@ -22,6 +22,7 @@ use App\Jobs\Filing\ProcessFilingValidationZip;
 use App\Jobs\Filing\ProcessMassXmlUpload;
 use App\Jobs\Filing\SaveErrorsJob;
 use App\Jobs\Filing\ValidateZipJob;
+use App\Jobs\FillingOld\ValidateFilingZipJob;
 use App\Jobs\ProcessRedisBatch;
 use App\Jobs\TestFilingImport;
 use App\Mappers\ServiceFilingMapper;
@@ -58,8 +59,7 @@ class FilingController extends Controller
         protected FilingInvoiceRepository $filingInvoiceRepository,
         protected SupportTypeRepository $supportTypeRepository,
         protected PatientRepository $patientRepository,
-    ) {
-    }
+    ) {}
 
     public function paginate(Request $request)
     {
@@ -91,84 +91,74 @@ class FilingController extends Controller
     public function uploadZip(FilingUploadZipRequest $request)
     {
         return $this->runTransaction(function () use ($request) {
+            // 1. Recolección de Datos
             $company_id = $request->input('company_id');
             $user_id = $request->input('user_id');
             $uploadedFile = $request->file('file');
-            $batchId = Str::uuid();
+            $batchId = Str::uuid()->toString(); // Buena práctica: forzar string
 
+            // 2. Normalización del Nombre del Archivo
             $fileNameWithExtension = strtolower($uploadedFile->getClientOriginalName());
             $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
             $fileExtension = strtolower($uploadedFile->getClientOriginalExtension());
             $uniqueFileName = $fileName . '_' . time() . '.' . $fileExtension;
+
+            // 3. Almacenamiento Físico (Carpeta Temporal Aislada)
             $tempSubfolder = 'temp/filings/zip/' . $batchId;
             $filePath = $uploadedFile->storeAs($tempSubfolder, $uniqueFileName, Constants::DISK_FILES);
+
+            // Nota: fullPath es útil para ZipArchive, pero recuerda que depende del driver local
             $fullPath = storage_path('app/public/' . $filePath);
 
+            // 4. Preparar Metadata
             $metadata = [
-                'file_name' => $uniqueFileName,
-                'file_size' => $uploadedFile->getSize(),
-                'path_zip' => $filePath,
-                'started_at' => now()->toDateTimeString(),
-                'total_rows' => 0,
-                'total_sheets' => 1,
-                'current_sheet' => 1,
-                'user_id' => $user_id,
-                'company_id' => $company_id,
-            ];
-            $redis = Redis::connection('redis_6380');
-            $redis->hmset("batch:{$batchId}:metadata", $metadata);
-            $redis->hmset("rip_batch:{$batchId}", [
-                'status' => 'uploaded',
-                'file_path' => $filePath,
-                'user_id' => $user_id,
-                'company_id' => $company_id,
+                'file_name'     => $uniqueFileName,
+                'original_name' => $fileNameWithExtension,
+                'file_size'     => $uploadedFile->getSize(),
+                'path_zip'      => $filePath,                 // Ruta relativa
+                'full_path'     => $fullPath,                 // Ruta absoluta
+                'disk'          => Constants::DISK_FILES,
+                'user_id'       => $user_id,
+                'company_id'    => $company_id,
+                'started_at'    => now()->toDateTimeString(),
+                'status'        => 'uploaded',                // <--- Status aquí mismo
+                'type'          => StatusFilingEnum::FILING_EST_001->value, // <--- Tipo aquí mismo
                 'process_batch_id' => $batchId,
-                'type' => StatusFilingEnum::FILING_EST_001->value,
-            ]);
-            $redis->expire("rip_batch:{$batchId}", 86400);
+                'total_rows'    => 1,
+            ];
 
-            // Log::info("ZIP uploaded for batch {$batchId}: Path {$filePath}");
+            // 5. Redis: Estado en Tiempo Real
+            $redis = Redis::connection('redis_6380');
 
+            // Usamos hset en lugar de hmset (estándar moderno)
+            $redis->hmset("batch:{$batchId}:metadata", $metadata);
+
+            // Expiración de seguridad (24 horas)
+            $redis->expire("batch:{$batchId}:metadata", 86400);
+
+            // 6. MySQL: Registro Histórico
             ProcessBatch::create([
                 'id' => $batchId,
                 'batch_id' => $batchId,
                 'company_id' => $company_id,
                 'user_id' => $user_id,
                 'total_records' => 0,
+                'processed_records' => 0,
                 'error_count' => 0,
-                'status' => 'active',
+                'status' => 'queued', // Estado inicial correcto: 'queued'
                 'metadata' => json_encode($metadata),
             ]);
 
+            // 7. Selección de Cola y Dispatch (Fase 1: Validación ZIP)
             $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
 
-            TestFilingImport::dispatch($batchId, $selectedQueue);
-
-
-
-            // try {
-            //     // Seleccionar una cola disponible
-            //     $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
-
-            //     Bus::chain([
-            //         new ValidateZipJob($fullPath, $batchId, $user_id, $company_id, $selectedQueue),
-            //         new SaveErrorsJob($batchId, $selectedQueue),
-            //     ])
-            //         ->catch(function (\Throwable $e) use ($batchId) {
-            //             Log::error("Validation failed for batch {$batchId}: {$e->getMessage()}");
-            //             ErrorCollector::saveErrorsToDatabase($batchId, 'failed');
-            //             event(new ImportProgressEvent($batchId, 0, 'Error en validación', count(ErrorCollector::getErrors($batchId)), 'failed', 'error'));
-            //         })
-            //         ->onQueue($selectedQueue)
-            //         ->dispatch();
-            // } catch (\Exception $e) {
-            //     Log::error("No se pudo seleccionar una cola disponible: " . $e->getMessage());
-            //     // Manejar el error (ej: reintentar o notificar al usuario)
-            // }
+            // AQUÍ EL CAMBIO DE NOMBRE: ValidateFilingZipJob
+            ValidateFilingZipJob::dispatch($batchId, $selectedQueue)
+                ->onQueue($selectedQueue);
 
             return [
                 'code' => 200,
-                'message' => 'Archivo ZIP subido y encolado para validación.',
+                'message' => 'Archivo ZIP subido. Iniciando validación de estructura.',
                 'batch_id' => $batchId,
                 'status' => 'success',
             ];
