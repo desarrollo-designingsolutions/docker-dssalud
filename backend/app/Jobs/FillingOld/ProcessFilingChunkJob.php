@@ -3,6 +3,7 @@
 namespace App\Jobs\FillingOld;
 
 use App\Helpers\Common\ErrorCollector;
+use App\Helpers\FilingOld\ErrorCodes; // <--- Namespace correcto
 use App\Events\ImportProgressEvent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -10,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Log;
 
 // IMPORTA TUS VALIDADORES AQUÍ
 use App\Helpers\FilingOld\ACFileValidator;
@@ -40,6 +42,8 @@ class ProcessFilingChunkJob implements ShouldQueue
 
     public function handle()
     {
+        // 🐢 Sleep opcional
+        sleep(1);
 
         $prefix = strtoupper(substr($this->fileName, 0, 2));
 
@@ -51,42 +55,81 @@ class ProcessFilingChunkJob implements ShouldQueue
             try {
                 $this->validateRowByType($prefix, $this->fileName, $dataRow, $rowNum);
             } catch (\Throwable $e) {
+                // Captura de errores críticos que no sean de validación lógica
+                // USO DE ERRORCODES para excepción de fila
                 ErrorCollector::addError(
-                    $this->batchId, $rowNum, 'ROW_EXCEPTION',
-                    $e->getMessage(), 'R', basename($this->fileName), json_encode($dataRow)
+                    $this->batchId,
+                    $rowNum,
+                    'ROW_EXCEPTION',
+                    ErrorCodes::getMessage('ROW_EXCEPTION', $e->getMessage()),
+                    'R',
+                    ErrorCodes::getCode('ROW_EXCEPTION'),
+                    json_encode($dataRow)
                 );
             }
         }
 
-        // 2. Actualizar Progreso GLOBAL en Redis
+        // =================================================================
+        // 2. LÓGICA DEL CIERRE ATÓMICO ("ÚLTIMO HOMBRE EN PIE")
+        // =================================================================
         $redis = Redis::connection('redis_6380');
         $redisKeyMeta = "batch:{$this->batchId}:metadata";
 
         $processedInChunk = count($this->chunkData);
 
-        // Sumar al acumulado
+        // Incremento ATÓMICO.
         $newGlobalTotal = $redis->hincrby($redisKeyMeta, 'processed_records', $processedInChunk);
 
-        // Obtener el Gran Total (Calculado en Fase 2)
-        $grandTotal = $redis->hget($redisKeyMeta, 'total_rows');
+        // Obtenemos el Gran Total (Calculado en Fase 2)
+        $grandTotal = (int) $redis->hget($redisKeyMeta, 'total_rows');
+        $currentErrors = ErrorCollector::countErrors($this->batchId);
 
-        // 3. Emitir Evento con Mensaje Global
-        // Mensaje: "Procesando registros (150 / 5000)"
-        $msgElement = "Procesando registros ({$newGlobalTotal} / {$grandTotal})";
+        // VALIDACIÓN DE CIERRE
+        if ($newGlobalTotal >= $grandTotal) {
 
-        event(new ImportProgressEvent(
-            $this->batchId,
-            $newGlobalTotal,
-            "Validando información...", // Acción General
-            ErrorCollector::countErrors($this->batchId),
-            'active',
-            $msgElement // Detalle numérico
-        ));
+            // 🛑 SOY EL ÚLTIMO
+            $finalStatus = ($currentErrors > 0) ? 'failed' : 'completed';
+
+            // 1. Guardar en Base de Datos
+            ErrorCollector::saveErrorsToDatabase($this->batchId, $finalStatus);
+
+            // 2. Actualizar Metadata final en Redis
+            $redis->hmset($redisKeyMeta, [
+                'status' => $finalStatus,
+                'progress' => 100
+            ]);
+
+            // 3. Evento Final (100%)
+            event(new ImportProgressEvent(
+                $this->batchId,
+                $grandTotal,
+                "Proceso Finalizado. Registros validados.",
+                $currentErrors,
+                $finalStatus,
+                "Validación completada."
+            ));
+
+            Log::info("Batch {$this->batchId} finalizado correctamente por Worker.");
+
+        } else {
+
+            // 🏃 NO SOY EL ÚLTIMO
+            $msgElement = "Procesando registros ({$newGlobalTotal} / {$grandTotal})";
+
+            event(new ImportProgressEvent(
+                $this->batchId,
+                $newGlobalTotal,
+                "Validando información...",
+                $currentErrors,
+                'active',
+                $msgElement
+            ));
+        }
     }
 
     private function validateRowByType(string $prefix, string $fileName, array $dataRow, int $rowNum)
     {
-        // Convertir array a CSV string para compatibilidad con tus validadores actuales
+        // Convertir array a CSV string para compatibilidad
         $rawLine = implode(',', $dataRow);
 
         switch ($prefix) {

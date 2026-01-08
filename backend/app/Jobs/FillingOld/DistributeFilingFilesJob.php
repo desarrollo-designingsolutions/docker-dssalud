@@ -3,6 +3,7 @@
 namespace App\Jobs\FillingOld;
 
 use App\Helpers\Common\ErrorCollector;
+use App\Helpers\FilingOld\ErrorCodes; // <--- Namespace correcto
 use App\Events\ImportProgressEvent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -56,7 +57,7 @@ class DistributeFilingFilesJob implements ShouldQueue
         $zipPath = storage_path('app/public/' . $metadata['path_zip']);
         $extractPath = storage_path('app/public/temp/filings/extracted/' . $this->batchId);
 
-        // Lógica de re-extracción si no existe (por si acaso)
+        // Lógica de re-extracción
         if (!is_dir($extractPath)) {
              if (!file_exists($zipPath)) {
                  $this->failJob("El archivo ZIP ya no existe."); return;
@@ -101,10 +102,10 @@ class DistributeFilingFilesJob implements ShouldQueue
         }
 
         // ============================================================
-        // 🚀 FASE 3: DISTRIBUCIÓN (Con Fix UTF-8 + Captura CT)
+        // 🚀 FASE 3: DISTRIBUCIÓN
         // ============================================================
 
-        $redis->del("batch:{$this->batchId}:file_progress"); // Limpieza previa
+        $redis->del("batch:{$this->batchId}:file_progress");
 
         // 1. CÁLCULO DE TOTALES GLOBALES
         event(new ImportProgressEvent(
@@ -145,7 +146,7 @@ class DistributeFilingFilesJob implements ShouldQueue
 
         foreach ($filesToProcess as $filePath) {
             $fileName = basename($filePath);
-            $prefix = strtoupper(substr($fileName, 0, 2)); // US, AF, CT...
+            $prefix = strtoupper(substr($fileName, 0, 2));
 
             $handle = fopen($filePath, 'r');
             $chunkData = [];
@@ -160,11 +161,9 @@ class DistributeFilingFilesJob implements ShouldQueue
                     return mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
                 }, $data);
 
-                // B. 🔥 CAPTURA DE DATOS DEL CT (Aquí se llena la variable)
-                // Si es el archivo de Control (CT) y es la primera línea...
+                // B. CAPTURA DE DATOS DEL CT
                 if ($prefix === 'CT' && $lineNum === 1) {
-                    $providerCode = trim($data[0] ?? ''); // Columna 1 del CT es el Código Prestador
-                    // Guardamos en Redis para que AFFileValidator lo pueda consultar
+                    $providerCode = trim($data[0] ?? '');
                     $redis->hset("batch:{$this->batchId}:header_info", 'provider_code', $providerCode);
                 }
 
@@ -210,8 +209,16 @@ class DistributeFilingFilesJob implements ShouldQueue
             if ($actual === 1 && $data[0] === null) continue;
 
             if ($actual !== $expected) {
-                ErrorCollector::addError($this->batchId, $row, 'COLUMN_MISMATCH',
-                    "Archivo {$fileName}: Esperaba {$expected} col, tiene {$actual}", 'R', $data[0]??'', json_encode($data));
+                // USO DE ERRORCODES
+                ErrorCollector::addError(
+                    $this->batchId,
+                    $row,
+                    'COLUMN_MISMATCH',
+                    ErrorCodes::getMessage('FILE_STRUCT_MISMATCH', $fileName, $expected, $actual),
+                    'R',
+                    ErrorCodes::getCode('FILE_STRUCT_MISMATCH'),
+                    json_encode($data)
+                );
                 $isValid = false;
                 break;
             }

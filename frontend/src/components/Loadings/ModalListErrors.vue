@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAuthenticationStore } from '@/stores/useAuthenticationStore';
+
 const emit = defineEmits(["execute"])
 
 const titleModal = ref<string>("Listado de errores")
@@ -8,6 +10,8 @@ const handleDialogVisible = () => {
 
 };
 
+const loading = reactive({ csv: false, excel: false })
+const authenticationStore = useAuthenticationStore();
 
 //TABLE
 const refTableFull = ref()
@@ -55,9 +59,42 @@ const openModal = async (batchId: string) => {
   optionsTable.value.paramsGlobal.batch_id=batchId 
 };
 
+
+const downloadErrorsCsv = async () => {
+  loading.csv = true;
+
+  try {
+    const { data, response } = await useAxios(`/processBatch/generateCsvReportErrors`).post({
+        user_id: authenticationStore.user.id,
+        batch_id: optionsTable.value.paramsGlobal.batch_id,
+    });
+  } catch (error) {
+    console.error("Error downloading CSV:", error);
+  } finally {
+    loading.csv = false;
+  }
+}
+
+const downloadDataExcel = async () => {
+  loading.excel = true;
+
+  try {
+    const { data, response } = await useAxios(`/processBatch/generateExcelReportData`).post({
+        user_id: authenticationStore.user.id,
+        batch_id: optionsTable.value.paramsGlobal.batch_id,
+    });
+  } catch (error) {
+    console.error("Error downloading XLSX:", error);
+  } finally {
+    loading.excel = false;
+  }
+}
+
 defineExpose({
   openModal
 })
+
+
 
 
 </script>
@@ -74,6 +111,26 @@ defineExpose({
             <VToolbarTitle>{{ titleModal }}</VToolbarTitle>
           </VToolbar>
         </div>
+
+        <VCardText class="d-flex justify-space-between">
+
+          <div class="d-flex justify-end gap-3 flex-wrap ">
+            <VBtn :loading="loading.csv" :disabled="loading.csv" size="38" color="primary" icon
+              @click="downloadErrorsCsv">
+              <VIcon icon="tabler-file-spreadsheet"></VIcon>
+              <VTooltip location="top" transition="scale-transition" activator="parent"
+                text="Descargar errores en formato CSV">
+              </VTooltip>
+            </VBtn>
+            <VBtn :loading="loading.excel" :disabled="loading.excel" size="38" color="primary" icon
+              @click="downloadDataExcel">
+              <VIcon icon="tabler-file-spreadsheet"></VIcon>
+              <VTooltip location="top" transition="scale-transition" activator="parent"
+                text="Descargar datos en formato excel">
+              </VTooltip>
+            </VBtn>
+          </div>
+        </VCardText>
 
         <VCardText> 
           <FilterDialogNew :options-filter="optionsFilter" @force-search="handleForceSearch"

@@ -4,247 +4,227 @@ namespace App\Helpers\FilingOld;
 
 class ErrorCodes
 {
-    // Errores de estructura en ZIP
-    const ZIP_STR_001 = ['code' => 'ZIP_STR_001', 'message' => 'El archivo no es un ZIP válido.'];
-    const ZIP_STR_002 = ['code' => 'ZIP_STR_002', 'message' => 'El ZIP contiene carpetas (no permitido).'];
-    const ZIP_STR_003 = ['code' => 'ZIP_STR_003', 'message' => 'El ZIP no tiene la cantidad mínima de archivos TXT (se requieren al menos 4).'];
-    const ZIP_STR_004 = ['code' => 'ZIP_STR_004', 'message' => 'El ZIP tiene más archivos TXT de los permitidos (máximo 10).'];
+    // ========================================================================
+    // 📦 ERRORES DE ESTRUCTURA ZIP
+    // ========================================================================
+    const ZIP_CRITICAL_001 = ['code' => 'ZIP_CRITICAL_001', 'message' => 'El archivo ZIP no existe en el servidor.'];
+    const ZIP_CRITICAL_002 = ['code' => 'ZIP_CRITICAL_002', 'message' => 'El archivo subido no tiene extensión .zip.'];
+    const ZIP_CRITICAL_003 = ['code' => 'ZIP_CRITICAL_003', 'message' => 'El archivo no es un ZIP válido o está corrupto.'];
 
-    // Errores de validación en ZIP
-    const ZIP_VAL_001 = ['code' => 'ZIP_VAL_001', 'message' => 'Falta el archivo AF requerido.'];
-    const ZIP_VAL_002 = ['code' => 'ZIP_VAL_002', 'message' => 'Falta el archivo US requerido.'];
-    const ZIP_VAL_003 = ['code' => 'ZIP_VAL_003', 'message' => 'Falta el archivo CT requerido.'];
-    const ZIP_VAL_004 = ['code' => 'ZIP_VAL_004', 'message' => 'Falta al menos uno de los archivos AC/AP/AM/AT.'];
+    const ZIP_CONTENT_001 = ['code' => 'ZIP_CONTENT_001', 'message' => 'El ZIP contiene carpetas (solo se permiten archivos en la raíz).'];
+    const ZIP_CONTENT_002 = ['code' => 'ZIP_CONTENT_002', 'message' => 'El ZIP contiene %d archivos. El máximo permitido es 10.'];
+    const ZIP_CONTENT_003 = ['code' => 'ZIP_CONTENT_003', 'message' => 'El ZIP contiene solo %d archivos. El mínimo requerido es 4.'];
 
-    // Errores de formato en ZIP
-    const ZIP_FMT_001 = ['code' => 'ZIP_FMT_001', 'message' => 'El ZIP contiene archivos con extensiones no permitidas (solo se permite TXT).'];
+    const ZIP_MISSING_AF = ['code' => 'ZIP_MISSING_AF', 'message' => 'Falta el archivo de transacciones (AF).'];
+    const ZIP_MISSING_US = ['code' => 'ZIP_MISSING_US', 'message' => 'Falta el archivo de usuarios (US).'];
+    const ZIP_MISSING_DETAIL = ['code' => 'ZIP_MISSING_DETAIL', 'message' => 'Falta al menos un archivo de detalle (AC, AP, AM o AT).'];
 
-    // Errores de contenido en TXT (para archivos dentro del ZIP)
-    const TXT_STR_001 = ['code' => 'TXT_STR_001', 'message' => 'El archivo TXT está vacío.'];
-    // Errores de validación en TXT (para longitud de elementos)
-    const TXT_VAL_002 = ['code' => 'TXT_VAL_002', 'message' => 'El elemento en la línea %d debe tener %d elementos y tiene %d.'];
+    // ========================================================================
+    // 🏗️ ERRORES DE ESTRUCTURA INTERNA
+    // ========================================================================
+    const FILE_STRUCT_MISMATCH = ['code' => 'FILE_STRUCT_MISMATCH', 'message' => 'Archivo %s: Esperaba %d columnas, tiene %d.'];
+    const ROW_EXCEPTION = ['code' => 'ROW_EXCEPTION', 'message' => 'Error crítico al procesar la fila: %s'];
 
-    // Errores de archivo CT
-    const FILE_CT_ERROR_001 = ['code' => 'FILE_CT_ERROR_001', 'message' => 'El valor registrado no es numérico.'];
-    const FILE_CT_ERROR_002 = ['code' => 'FILE_CT_ERROR_002', 'message' => 'El dato registrado contiene una longitud diferente a 12 caracteres.'];
-    const FILE_CT_ERROR_003 = ['code' => 'FILE_CT_ERROR_003', 'message' => 'El dato registrado no usa el formato de fecha establecido.'];
-    const FILE_CT_ERROR_004 = ['code' => 'FILE_CT_ERROR_004', 'message' => 'La fecha registrada es mayor a la fecha actual.'];
-    const FILE_CT_ERROR_005 = ['code' => 'FILE_CT_ERROR_005', 'message' => 'El código de archivo no cumple con el formato permitido.'];
-    const FILE_CT_ERROR_006 = ['code' => 'FILE_CT_ERROR_006', 'message' => 'El código de archivo solo puede ser registrado una vez por cada tipo.'];
-    const FILE_CT_ERROR_007 = ['code' => 'FILE_CT_ERROR_007', 'message' => 'El valor registrado no es numérico.'];
-    const FILE_CT_ERROR_008 = ['code' => 'FILE_CT_ERROR_008', 'message' => 'No se encontró el archivo correspondiente al código %s. Verifique que exista en el ZIP.'];
-    const FILE_CT_ERROR_009 = ['code' => 'FILE_CT_ERROR_009', 'message' => 'El total de registros (%s) no coincide con las filas encontradas (%s) en el archivo %s. Ajuste el valor o el archivo.'];
+    // ========================================================================
+    // 📄 ERRORES DE ARCHIVO CT (Control)
+    // ========================================================================
+    const FILE_CT_ERROR_001 = ['code' => 'FILE_CT_ERROR_001', 'message' => 'El valor no es numérico.'];
+    const FILE_CT_ERROR_002 = ['code' => 'FILE_CT_ERROR_002', 'message' => 'Debe tener 12 caracteres.'];
+    const FILE_CT_ERROR_003 = ['code' => 'FILE_CT_ERROR_003', 'message' => 'Fecha inválida (formato dd/mm/aaaa).'];
+    const FILE_CT_ERROR_004 = ['code' => 'FILE_CT_ERROR_004', 'message' => 'La fecha es futura.'];
+    const FILE_CT_ERROR_005 = ['code' => 'FILE_CT_ERROR_005', 'message' => 'El prefijo del archivo no es válido.'];
+    const FILE_CT_ERROR_006 = ['code' => 'FILE_CT_ERROR_006', 'message' => 'El archivo está duplicado en este CT.'];
+    const FILE_CT_ERROR_007 = ['code' => 'FILE_CT_ERROR_007', 'message' => 'El total no es numérico.'];
+    const FILE_CT_ERROR_008 = ['code' => 'FILE_CT_ERROR_008', 'message' => 'El archivo referenciado no existe en el ZIP.'];
+    const FILE_CT_ERROR_009 = ['code' => 'FILE_CT_ERROR_009', 'message' => 'Inconsistencia: CT dice %d registros, archivo real tiene %d.'];
 
-    // Errores de archivo US
-    const FILE_US_ERROR_001 = ['code' => 'FILE_US_ERROR_001', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_US_ERROR_002 = ['code' => 'FILE_US_ERROR_002', 'message' => 'El número de identificación del usuario es obligatorio.'];
-    const FILE_US_ERROR_003 = ['code' => 'FILE_US_ERROR_003', 'message' => 'La unidad de medida de la edad debe ser 1 para el tipo de identificación CC.'];
-    const FILE_US_ERROR_004 = ['code' => 'FILE_US_ERROR_004', 'message' => 'La unidad de medida de la edad debe ser 1 para el tipo de identificación CE.'];
-    const FILE_US_ERROR_006 = ['code' => 'FILE_US_ERROR_006', 'message' => 'La unidad de medida de la edad debe ser 1 para el tipo de identificación TI.'];
-    const FILE_US_ERROR_007 = ['code' => 'FILE_US_ERROR_007', 'message' => 'La unidad de medida de la edad debe ser 3 para el tipo de identificación CN.'];
-    const FILE_US_ERROR_008 = ['code' => 'FILE_US_ERROR_008', 'message' => 'La unidad de medida de la edad debe ser 1 para el tipo de identificación AS.'];
-    const FILE_US_ERROR_009 = ['code' => 'FILE_US_ERROR_009', 'message' => 'El número de identificación excede la longitud máxima de 10 caracteres para CC.'];
-    const FILE_US_ERROR_010 = ['code' => 'FILE_US_ERROR_010', 'message' => 'El número de identificación excede la longitud máxima de 6 caracteres para CE.'];
-    const FILE_US_ERROR_011 = ['code' => 'FILE_US_ERROR_011', 'message' => 'El número de identificación excede la longitud máxima de 16 caracteres para CD.'];
-    const FILE_US_ERROR_012 = ['code' => 'FILE_US_ERROR_012', 'message' => 'El número de identificación excede la longitud máxima de 16 caracteres para PA.'];
-    const FILE_US_ERROR_013 = ['code' => 'FILE_US_ERROR_013', 'message' => 'El número de identificación excede la longitud máxima de 16 caracteres para SC.'];
-    const FILE_US_ERROR_014 = ['code' => 'FILE_US_ERROR_014', 'message' => 'El número de identificación excede la longitud máxima de 15 caracteres para PE.'];
-    const FILE_US_ERROR_015 = ['code' => 'FILE_US_ERROR_015', 'message' => 'El número de identificación excede la longitud máxima de 15 caracteres para RE.'];
-    const FILE_US_ERROR_016 = ['code' => 'FILE_US_ERROR_016', 'message' => 'El número de identificación excede la longitud máxima de 11 caracteres para RC.'];
-    const FILE_US_ERROR_017 = ['code' => 'FILE_US_ERROR_017', 'message' => 'El número de identificación debe ser numérico para el tipo de identificación TI.'];
-    const FILE_US_ERROR_018 = ['code' => 'FILE_US_ERROR_018', 'message' => 'El número de identificación excede la longitud máxima de 11 caracteres para TI.'];
-    const FILE_US_ERROR_019 = ['code' => 'FILE_US_ERROR_019', 'message' => 'El número de identificación excede la longitud máxima de 9 caracteres para CN.'];
-    const FILE_US_ERROR_020 = ['code' => 'FILE_US_ERROR_020', 'message' => 'El número de identificación excede la longitud máxima de 10 caracteres para AS.'];
-    const FILE_US_ERROR_021 = ['code' => 'FILE_US_ERROR_021', 'message' => 'El número de identificación excede la longitud máxima de 12 caracteres para MS.'];
-    const FILE_US_ERROR_023 = ['code' => 'FILE_US_ERROR_023', 'message' => 'El tipo de usuario no es un valor permitido.'];
-    const FILE_US_ERROR_024 = ['code' => 'FILE_US_ERROR_024', 'message' => 'El primer apellido del usuario es obligatorio.'];
-    const FILE_US_ERROR_025 = ['code' => 'FILE_US_ERROR_025', 'message' => 'El primer nombre del usuario es obligatorio.'];
-    const FILE_US_ERROR_026 = ['code' => 'FILE_US_ERROR_026', 'message' => 'La edad del usuario es obligatoria.'];
-    const FILE_US_ERROR_028 = ['code' => 'FILE_US_ERROR_028', 'message' => 'La unidad de medida de la edad no es un valor permitido.'];
-    const FILE_US_ERROR_029 = ['code' => 'FILE_US_ERROR_029', 'message' => 'La unidad de medida de la edad es obligatoria.'];
-    const FILE_US_ERROR_030 = ['code' => 'FILE_US_ERROR_030', 'message' => 'El sexo del usuario es obligatorio.'];
-    const FILE_US_ERROR_031 = ['code' => 'FILE_US_ERROR_031', 'message' => 'El sexo del usuario no es un valor permitido.'];
-    const FILE_US_ERROR_032 = ['code' => 'FILE_US_ERROR_032', 'message' => 'El código del departamento de residencia habitual es obligatorio.'];
-    const FILE_US_ERROR_033 = ['code' => 'FILE_US_ERROR_033', 'message' => 'El código del municipio de residencia habitual es obligatorio.'];
-    const FILE_US_ERROR_034 = ['code' => 'FILE_US_ERROR_034', 'message' => 'La zona de residencia habitual es obligatoria.'];
-    const FILE_US_ERROR_035 = ['code' => 'FILE_US_ERROR_035', 'message' => 'La zona de residencia habitual no es un valor permitido.'];
+    // ========================================================================
+    // 👥 ERRORES DE ARCHIVO US (Usuarios)
+    // ========================================================================
+    const FILE_US_ERROR_001 = ['code' => 'FILE_US_ERROR_001', 'message' => 'El tipo de identificación no es válido.'];
+    const FILE_US_ERROR_002 = ['code' => 'FILE_US_ERROR_002', 'message' => 'El valor debe ser numérico.'];
+    const FILE_US_ERROR_009 = ['code' => 'FILE_US_ERROR_009', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_005 = ['code' => 'FILE_US_ERROR_005', 'message' => 'El valor debe ser numérico.'];
+    const FILE_US_ERROR_018 = ['code' => 'FILE_US_ERROR_018', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_010 = ['code' => 'FILE_US_ERROR_010', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_011 = ['code' => 'FILE_US_ERROR_011', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_012 = ['code' => 'FILE_US_ERROR_012', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_013 = ['code' => 'FILE_US_ERROR_013', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_014 = ['code' => 'FILE_US_ERROR_014', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_015 = ['code' => 'FILE_US_ERROR_015', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_016 = ['code' => 'FILE_US_ERROR_016', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_019 = ['code' => 'FILE_US_ERROR_019', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_020 = ['code' => 'FILE_US_ERROR_020', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_021 = ['code' => 'FILE_US_ERROR_021', 'message' => 'Longitud excede el máximo permitido.'];
+    const FILE_US_ERROR_017 = ['code' => 'FILE_US_ERROR_017', 'message' => 'El valor debe ser numérico.'];
+    const FILE_US_ERROR_026 = ['code' => 'FILE_US_ERROR_026', 'message' => 'El dato edad es obligatorio.'];
+    const FILE_US_ERROR_AGE = ['code' => 'FILE_US_ERROR_AGE', 'message' => 'La edad debe ser un número.'];
+    const FILE_US_ERROR_029 = ['code' => 'FILE_US_ERROR_029', 'message' => 'El registro del dato es obligatorio.'];
+    const FILE_US_ERROR_028 = ['code' => 'FILE_US_ERROR_028', 'message' => 'Dato inválido (Permitido: 1, 2, 3).'];
+    const FILE_US_ERROR_003 = ['code' => 'FILE_US_ERROR_003', 'message' => 'El campo unidad de medida es diferente a 1.'];
+    const FILE_US_ERROR_004 = ['code' => 'FILE_US_ERROR_004', 'message' => 'El campo unidad de medida es diferente a 1.'];
+    const FILE_US_ERROR_007 = ['code' => 'FILE_US_ERROR_007', 'message' => 'El campo unidad de medida es diferente a 1.'];
+    const FILE_US_ERROR_006 = ['code' => 'FILE_US_ERROR_006', 'message' => 'El campo unidad de medida es diferente a 1.'];
+    const FILE_US_ERROR_022 = ['code' => 'FILE_US_ERROR_022', 'message' => 'El campo unidad de medida es diferente a 3.'];
+    const FILE_US_ERROR_023 = ['code' => 'FILE_US_ERROR_023', 'message' => 'El dato registrado no es un valor permitido.'];
+    const FILE_US_ERROR_024 = ['code' => 'FILE_US_ERROR_024', 'message' => 'El primer apellido es un dato obligatorio.'];
+    const FILE_US_ERROR_025 = ['code' => 'FILE_US_ERROR_025', 'message' => 'El primer nombre es un dato obligatorio.'];
+    const FILE_US_ERROR_030 = ['code' => 'FILE_US_ERROR_030', 'message' => 'El registro del dato es obligatorio.'];
+    const FILE_US_ERROR_034 = ['code' => 'FILE_US_ERROR_034', 'message' => 'Dato inválido.'];
+    const FILE_US_ERROR_032 = ['code' => 'FILE_US_ERROR_032', 'message' => 'El registro del dato es obligatorio.'];
+    const FILE_US_ERROR_033 = ['code' => 'FILE_US_ERROR_033', 'message' => 'El registro del dato es obligatorio.']; // Usado también para Zona
 
-    // Errores de archivo AU
-    const FILE_AU_ERROR_001 = ['code' => 'FILE_AU_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AU_ERROR_002 = ['code' => 'FILE_AU_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AU_ERROR_003 = ['code' => 'FILE_AU_ERROR_003', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_AU_ERROR_004 = ['code' => 'FILE_AU_ERROR_004', 'message' => 'La fecha de ingreso del usuario a urgencias es obligatoria.'];
-    const FILE_AU_ERROR_005 = ['code' => 'FILE_AU_ERROR_005', 'message' => 'La hora de ingreso del usuario a urgencias es obligatoria.'];
-    const FILE_AU_ERROR_006 = ['code' => 'FILE_AU_ERROR_006', 'message' => 'El número de autorización es obligatorio.'];
-    const FILE_AU_ERROR_007 = ['code' => 'FILE_AU_ERROR_007', 'message' => 'La causa externa es obligatoria.'];
-    const FILE_AU_ERROR_008 = ['code' => 'FILE_AU_ERROR_008', 'message' => 'La causa externa no es un valor permitido.'];
-    const FILE_AU_ERROR_009 = ['code' => 'FILE_AU_ERROR_009', 'message' => 'El diagnóstico principal de ingreso es obligatorio.'];
-    const FILE_AU_ERROR_010 = ['code' => 'FILE_AU_ERROR_010', 'message' => 'El diagnóstico principal de egreso es obligatorio.'];
-    const FILE_AU_ERROR_011 = ['code' => 'FILE_AU_ERROR_011', 'message' => 'El diagnóstico de la complicación es obligatorio.'];
-    const FILE_AU_ERROR_012 = ['code' => 'FILE_AU_ERROR_012', 'message' => 'El estado a la salida es obligatorio.'];
-    const FILE_AU_ERROR_013 = ['code' => 'FILE_AU_ERROR_013', 'message' => 'El estado a la salida no es un valor permitido.'];
-    const FILE_AU_ERROR_014 = ['code' => 'FILE_AU_ERROR_014', 'message' => 'La fecha de egreso del usuario de urgencias es obligatoria.'];
-    const FILE_AU_ERROR_015 = ['code' => 'FILE_AU_ERROR_015', 'message' => 'La hora de egreso del usuario de urgencias es obligatoria.'];
+    // ========================================================================
+    // 🏥 ERRORES DE ARCHIVO AF (Transacciones)
+    // ========================================================================
+    const FILE_AF_ERROR_001 = ['code' => 'FILE_AF_ERROR_001', 'message' => 'Dato obligatorio.'];
+    const FILE_AF_ERROR_CROSS = ['code' => 'FILE_AF_ERROR_CROSS', 'message' => 'No coincide con el CT (%s).'];
+    const FILE_AF_ERROR_003 = ['code' => 'FILE_AF_ERROR_003', 'message' => 'Dato obligatorio.'];
+    const FILE_AF_ERROR_005 = ['code' => 'FILE_AF_ERROR_005', 'message' => 'Valor no permitido.'];
+    const FILE_AF_ERROR_006 = ['code' => 'FILE_AF_ERROR_006', 'message' => 'Dato obligatorio.'];
+    const FILE_AF_ERROR_007 = ['code' => 'FILE_AF_ERROR_007', 'message' => 'Dato obligatorio.'];
+    const FILE_AF_ERROR_008 = ['code' => 'FILE_AF_ERROR_008', 'message' => 'Fecha expedición inválida.'];
+    const FILE_AF_ERROR_009 = ['code' => 'FILE_AF_ERROR_009', 'message' => 'Fecha inicio inválida.'];
+    const FILE_AF_ERROR_010 = ['code' => 'FILE_AF_ERROR_010', 'message' => 'Fecha final inválida.'];
+    const FILE_AF_ERROR_DATES = ['code' => 'FILE_AF_ERROR_DATES', 'message' => 'Fecha Inicio mayor a Final.'];
+    const FILE_AF_ERROR_011 = ['code' => 'FILE_AF_ERROR_011', 'message' => 'Dato obligatorio.'];
 
-    // Errores de archivo AT
-    const FILE_AT_ERROR_001 = ['code' => 'FILE_AT_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AT_ERROR_002 = ['code' => 'FILE_AT_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AT_ERROR_003 = ['code' => 'FILE_AT_ERROR_003', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_AT_ERROR_004 = ['code' => 'FILE_AT_ERROR_004', 'message' => 'El número de autorización es obligatorio.'];
-    const FILE_AT_ERROR_005 = ['code' => 'FILE_AT_ERROR_005', 'message' => 'El código del servicio es obligatorio.'];
-    const FILE_AT_ERROR_006 = ['code' => 'FILE_AT_ERROR_006', 'message' => 'El tipo de servicio no es un valor permitido.'];
-    const FILE_AT_ERROR_007 = ['code' => 'FILE_AT_ERROR_007', 'message' => 'El nombre del servicio es obligatorio.'];
-    const FILE_AT_ERROR_008 = ['code' => 'FILE_AT_ERROR_008', 'message' => 'La cantidad es obligatoria.'];
-    const FILE_AT_ERROR_009 = ['code' => 'FILE_AT_ERROR_009', 'message' => 'El valor unitario es obligatorio.'];
-    const FILE_AT_ERROR_010 = ['code' => 'FILE_AT_ERROR_010', 'message' => 'El valor total es obligatorio.'];
+    // ========================================================================
+    // 📋 ERRORES DE ARCHIVO AC (Consultas)
+    // ========================================================================
+    const FILE_AC_ERROR_001 = ['code' => 'FILE_AC_ERROR_001', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_002 = ['code' => 'FILE_AC_ERROR_002', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_003 = ['code' => 'FILE_AC_ERROR_003', 'message' => 'Valor no permitido.'];
+    const FILE_AC_ERROR_003_ID = ['code' => 'FILE_AC_ERROR_003_ID', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_004 = ['code' => 'FILE_AC_ERROR_004', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_004_F = ['code' => 'FILE_AC_ERROR_004_F', 'message' => 'Formato fecha inválido.'];
+    const FILE_AC_ERROR_005 = ['code' => 'FILE_AC_ERROR_005', 'message' => 'Código CUPS no permitido o no existe en la lista.'];
+    const FILE_AC_ERROR_006 = ['code' => 'FILE_AC_ERROR_006', 'message' => 'Valor no permitido.'];
+    const FILE_AC_ERROR_007 = ['code' => 'FILE_AC_ERROR_007', 'message' => 'Valor no permitido.'];
+    const FILE_AC_ERROR_008 = ['code' => 'FILE_AC_ERROR_008', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_009 = ['code' => 'FILE_AC_ERROR_009', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_011 = ['code' => 'FILE_AC_ERROR_011', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_012 = ['code' => 'FILE_AC_ERROR_012', 'message' => 'Valor inválido (1=Impresión, 2=Confirmado Nuevo, 3=Confirmado Repetido).'];
+    const FILE_AC_ERROR_013 = ['code' => 'FILE_AC_ERROR_013', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_013_N = ['code' => 'FILE_AC_ERROR_013_N', 'message' => 'Debe ser numérico.'];
+    const FILE_AC_ERROR_014 = ['code' => 'FILE_AC_ERROR_014', 'message' => 'Dato obligatorio.'];
+    const FILE_AC_ERROR_014_N = ['code' => 'FILE_AC_ERROR_014_N', 'message' => 'Debe ser numérico.'];
 
-    // Errores de archivo AP
-    const FILE_AP_ERROR_001 = ['code' => 'FILE_AP_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AP_ERROR_002 = ['code' => 'FILE_AP_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AP_ERROR_003 = ['code' => 'FILE_AP_ERROR_003', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_AP_ERROR_004 = ['code' => 'FILE_AP_ERROR_004', 'message' => 'El número de autorización es obligatorio.'];
-    const FILE_AP_ERROR_005 = ['code' => 'FILE_AP_ERROR_005', 'message' => 'El código del procedimiento es obligatorio.'];
-    const FILE_AP_ERROR_006 = ['code' => 'FILE_AP_ERROR_006', 'message' => 'La finalidad del procedimiento no es un valor permitido.'];
-    const FILE_AP_ERROR_007 = ['code' => 'FILE_AP_ERROR_007', 'message' => 'El personal que atiende no es un valor permitido.'];
-    const FILE_AP_ERROR_008 = ['code' => 'FILE_AP_ERROR_008', 'message' => 'El diagnóstico principal es obligatorio.'];
-    const FILE_AP_ERROR_009 = ['code' => 'FILE_AP_ERROR_009', 'message' => 'El diagnóstico de la complicación es obligatorio.'];
-    const FILE_AP_ERROR_010 = ['code' => 'FILE_AP_ERROR_010', 'message' => 'La forma de realización del acto quirúrgico no es un valor permitido.'];
-    const FILE_AP_ERROR_011 = ['code' => 'FILE_AP_ERROR_011', 'message' => 'El valor del procedimiento es obligatorio.'];
+    // ========================================================================
+    // 💉 ERRORES DE ARCHIVO AP (Procedimientos)
+    // ========================================================================
+    const FILE_AP_ERROR_001 = ['code' => 'FILE_AP_ERROR_001', 'message' => 'El numero de factura es un dato obligatorio.'];
+    const FILE_AP_ERROR_002 = ['code' => 'FILE_AP_ERROR_002', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_003 = ['code' => 'FILE_AP_ERROR_003', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_004 = ['code' => 'FILE_AP_ERROR_004', 'message' => 'El dato ingresado no es permitido.'];
+    const FILE_AP_ERROR_005 = ['code' => 'FILE_AP_ERROR_005', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_006 = ['code' => 'FILE_AP_ERROR_006', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_006_F = ['code' => 'FILE_AP_ERROR_006_F', 'message' => 'Formato fecha inválido (dd/mm/aaaa).'];
+    const FILE_AP_ERROR_007 = ['code' => 'FILE_AP_ERROR_007', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_008 = ['code' => 'FILE_AP_ERROR_008', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_009 = ['code' => 'FILE_AP_ERROR_009', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AP_ERROR_009_N = ['code' => 'FILE_AP_ERROR_009_N', 'message' => 'Debe ser un valor numérico.'];
 
-    // Errores de archivo AN
-    const FILE_AN_ERROR_001 = ['code' => 'FILE_AN_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AN_ERROR_002 = ['code' => 'FILE_AN_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AN_ERROR_003 = ['code' => 'FILE_AN_ERROR_003', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_AN_ERROR_004 = ['code' => 'FILE_AN_ERROR_004', 'message' => 'La fecha de nacimiento del recién nacido es obligatoria.'];
-    const FILE_AN_ERROR_005 = ['code' => 'FILE_AN_ERROR_005', 'message' => 'La hora de nacimiento del recién nacido es obligatoria.'];
-    const FILE_AN_ERROR_006 = ['code' => 'FILE_AN_ERROR_006', 'message' => 'La edad gestacional es obligatoria.'];
-    const FILE_AN_ERROR_007 = ['code' => 'FILE_AN_ERROR_007', 'message' => 'El control prenatal no es un valor permitido.'];
-    const FILE_AN_ERROR_008 = ['code' => 'FILE_AN_ERROR_008', 'message' => 'El sexo del recién nacido no es un valor permitido.'];
-    const FILE_AN_ERROR_009 = ['code' => 'FILE_AN_ERROR_009', 'message' => 'El peso al nacer es obligatorio.'];
-    const FILE_AN_ERROR_010 = ['code' => 'FILE_AN_ERROR_010', 'message' => 'El diagnóstico del recién nacido es obligatorio.'];
-    const FILE_AN_ERROR_011 = ['code' => 'FILE_AN_ERROR_011', 'message' => 'La causa básica de muerte es obligatoria.'];
-    const FILE_AN_ERROR_012 = ['code' => 'FILE_AN_ERROR_012', 'message' => 'La fecha de egreso del recién nacido es obligatoria.'];
-    const FILE_AN_ERROR_013 = ['code' => 'FILE_AN_ERROR_013', 'message' => 'La hora de egreso del recién nacido es obligatoria.'];
+    // ========================================================================
+    // 🚑 ERRORES DE ARCHIVO AU (Urgencias)
+    // ========================================================================
+    const FILE_AU_ERROR_001 = ['code' => 'FILE_AU_ERROR_001', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_002 = ['code' => 'FILE_AU_ERROR_002', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_003 = ['code' => 'FILE_AU_ERROR_003', 'message' => 'Valor no permitido.'];
+    const FILE_AU_ERROR_004 = ['code' => 'FILE_AU_ERROR_004', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_004_F = ['code' => 'FILE_AU_ERROR_004_F', 'message' => 'Formato fecha inválido.'];
+    const FILE_AU_ERROR_005 = ['code' => 'FILE_AU_ERROR_005', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_005_F = ['code' => 'FILE_AU_ERROR_005_F', 'message' => 'Formato hora inválido (HH:MM).'];
+    const FILE_AU_ERROR_006 = ['code' => 'FILE_AU_ERROR_006', 'message' => 'Valor no permitido.'];
+    const FILE_AU_ERROR_007 = ['code' => 'FILE_AU_ERROR_007', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_008 = ['code' => 'FILE_AU_ERROR_008', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_009 = ['code' => 'FILE_AU_ERROR_009', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_009_V = ['code' => 'FILE_AU_ERROR_009_V', 'message' => 'Valor no permitido.'];
+    const FILE_AU_ERROR_EST = ['code' => 'FILE_AU_ERROR_EST', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_EST_V = ['code' => 'FILE_AU_ERROR_EST_V', 'message' => 'Valor no permitido (1=Vivo, 2=Muerto).'];
+    const FILE_AU_ERROR_MUE = ['code' => 'FILE_AU_ERROR_MUE', 'message' => 'Si estado es Muerto, Causa Muerte es obligatoria.'];
+    const FILE_AU_ERROR_010 = ['code' => 'FILE_AU_ERROR_010', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_010_F = ['code' => 'FILE_AU_ERROR_010_F', 'message' => 'Formato fecha inválido.'];
+    const FILE_AU_ERROR_DATE_SEQ = ['code' => 'FILE_AU_ERROR_DATE_SEQ', 'message' => 'Fecha Ingreso mayor a Salida.'];
+    const FILE_AU_ERROR_011 = ['code' => 'FILE_AU_ERROR_011', 'message' => 'Dato obligatorio.'];
+    const FILE_AU_ERROR_011_F = ['code' => 'FILE_AU_ERROR_011_F', 'message' => 'Formato hora inválido.'];
 
-    // Errores de archivo AM
-    const FILE_AM_ERROR_001 = ['code' => 'FILE_AM_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AM_ERROR_002 = ['code' => 'FILE_AM_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AM_ERROR_003 = ['code' => 'FILE_AM_ERROR_003', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_AM_ERROR_004 = ['code' => 'FILE_AM_ERROR_004', 'message' => 'El tipo de medicamento es obligatorio.'];
-    const FILE_AM_ERROR_005 = ['code' => 'FILE_AM_ERROR_005', 'message' => 'El tipo de medicamento no es un valor permitido.'];
-    const FILE_AM_ERROR_006 = ['code' => 'FILE_AM_ERROR_006', 'message' => 'El nombre genérico del medicamento es obligatorio.'];
-    const FILE_AM_ERROR_007 = ['code' => 'FILE_AM_ERROR_007', 'message' => 'La forma farmacéutica es obligatoria.'];
-    const FILE_AM_ERROR_008 = ['code' => 'FILE_AM_ERROR_008', 'message' => 'La concentración del medicamento es obligatoria.'];
-    const FILE_AM_ERROR_009 = ['code' => 'FILE_AM_ERROR_009', 'message' => 'La unidad de medida del medicamento es obligatoria.'];
-    const FILE_AM_ERROR_010 = ['code' => 'FILE_AM_ERROR_010', 'message' => 'El número de unidades es obligatorio.'];
-    const FILE_AM_ERROR_011 = ['code' => 'FILE_AM_ERROR_011', 'message' => 'El valor total del medicamento es obligatorio.'];
+    // ========================================================================
+    // 🏥 ERRORES DE ARCHIVO AH (Hospitalización)
+    // ========================================================================
+    const FILE_AH_ERROR_001 = ['code' => 'FILE_AH_ERROR_001', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AH_ERROR_002 = ['code' => 'FILE_AH_ERROR_002', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AH_ERROR_003 = ['code' => 'FILE_AH_ERROR_003', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AH_ERROR_004 = ['code' => 'FILE_AH_ERROR_004', 'message' => 'El dato ingresado no es permitido.'];
+    const FILE_AH_ERROR_005 = ['code' => 'FILE_AH_ERROR_005', 'message' => 'La Fecha de ingreso del usuario a la institución es un dato obligatorio.'];
+    const FILE_AH_ERROR_005_F = ['code' => 'FILE_AH_ERROR_005_F', 'message' => 'Formato fecha inválido.'];
+    const FILE_AH_ERROR_006 = ['code' => 'FILE_AH_ERROR_006', 'message' => 'La Hora de ingreso del usuario a la Institución es un dato obligatorio.'];
+    const FILE_AH_ERROR_007 = ['code' => 'FILE_AH_ERROR_007', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AH_ERROR_009 = ['code' => 'FILE_AH_ERROR_009', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AH_ERROR_009_F = ['code' => 'FILE_AH_ERROR_009_F', 'message' => 'Formato fecha inválido.'];
+    const FILE_AH_ERROR_010 = ['code' => 'FILE_AH_ERROR_010', 'message' => 'El dato registrado es obligatorio.'];
 
-    // Errores de archivo AH
-    const FILE_AH_ERROR_001 = ['code' => 'FILE_AH_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AH_ERROR_002 = ['code' => 'FILE_AH_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AH_ERROR_003 = ['code' => 'FILE_AH_ERROR_003', 'message' => 'La vía de ingreso a la institución es obligatoria.'];
-    const FILE_AH_ERROR_004 = ['code' => 'FILE_AH_ERROR_004', 'message' => 'La vía de ingreso a la institución no es un valor permitido.'];
-    const FILE_AH_ERROR_005 = ['code' => 'FILE_AH_ERROR_005', 'message' => 'La fecha de ingreso del usuario a la institución es obligatoria.'];
-    const FILE_AH_ERROR_006 = ['code' => 'FILE_AH_ERROR_006', 'message' => 'La hora de ingreso del usuario a la institución es obligatoria.'];
-    const FILE_AH_ERROR_007 = ['code' => 'FILE_AH_ERROR_007', 'message' => 'La causa externa es obligatoria.'];
-    const FILE_AH_ERROR_008 = ['code' => 'FILE_AH_ERROR_008', 'message' => 'La causa externa no es un valor permitido.'];
-    const FILE_AH_ERROR_009 = ['code' => 'FILE_AH_ERROR_009', 'message' => 'La fecha de egreso del usuario de la institución es obligatoria.'];
-    const FILE_AH_ERROR_010 = ['code' => 'FILE_AH_ERROR_010', 'message' => 'La hora de egreso del usuario de la institución es obligatoria.'];
+    // ========================================================================
+    // 👶 ERRORES DE ARCHIVO AN (Recién Nacidos)
+    // ========================================================================
+    const FILE_AN_ERROR_001 = ['code' => 'FILE_AN_ERROR_001', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_002 = ['code' => 'FILE_AN_ERROR_002', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_003 = ['code' => 'FILE_AN_ERROR_003', 'message' => 'El dato registrado no es un valor permitido.'];
+    const FILE_AN_ERROR_004 = ['code' => 'FILE_AN_ERROR_004', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_005 = ['code' => 'FILE_AN_ERROR_005', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_006 = ['code' => 'FILE_AN_ERROR_006', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_007 = ['code' => 'FILE_AN_ERROR_007', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_008 = ['code' => 'FILE_AN_ERROR_008', 'message' => 'El dato registrado no es un valor permitido.'];
+    const FILE_AN_ERROR_009 = ['code' => 'FILE_AN_ERROR_009', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AN_ERROR_010 = ['code' => 'FILE_AN_ERROR_010', 'message' => 'El dato registrado no es un valor permitido.'];
+    const FILE_AN_ERROR_011 = ['code' => 'FILE_AN_ERROR_011', 'message' => 'El dato registrado es obligatorio.'];
 
-    // Errores de archivo AF
-    const FILE_AF_ERROR_001 = ['code' => 'FILE_AF_ERROR_001', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AF_ERROR_002 = ['code' => 'FILE_AF_ERROR_002', 'message' => 'El código del prestador debe coincidir con el registrado en el archivo de control.'];
-    const FILE_AF_ERROR_003 = ['code' => 'FILE_AF_ERROR_003', 'message' => 'La razón social o apellidos y nombre del prestador de servicios de salud es obligatoria.'];
-    const FILE_AF_ERROR_004 = ['code' => 'FILE_AF_ERROR_004', 'message' => 'El tipo de identificación del prestador de servicios de salud es obligatorio.'];
-    const FILE_AF_ERROR_005 = ['code' => 'FILE_AF_ERROR_005', 'message' => 'El tipo de identificación del prestador de servicios de salud no es un valor permitido.'];
-    const FILE_AF_ERROR_006 = ['code' => 'FILE_AF_ERROR_006', 'message' => 'El número de identificación del prestador es obligatorio.'];
-    const FILE_AF_ERROR_007 = ['code' => 'FILE_AF_ERROR_007', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AF_ERROR_008 = ['code' => 'FILE_AF_ERROR_008', 'message' => 'La fecha de expedición de la factura es obligatoria.'];
-    const FILE_AF_ERROR_009 = ['code' => 'FILE_AF_ERROR_009', 'message' => 'La fecha de inicio es obligatoria.'];
-    const FILE_AF_ERROR_010 = ['code' => 'FILE_AF_ERROR_010', 'message' => 'La fecha final es obligatoria.'];
-    const FILE_AF_ERROR_011 = ['code' => 'FILE_AF_ERROR_011', 'message' => 'El código de la entidad administradora es obligatorio.'];
+    // ========================================================================
+    // 💊 ERRORES DE ARCHIVO AM (Medicamentos)
+    // ========================================================================
+    const FILE_AM_ERROR_001 = ['code' => 'FILE_AM_ERROR_001', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_002 = ['code' => 'FILE_AM_ERROR_002', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_003 = ['code' => 'FILE_AM_ERROR_003', 'message' => 'El dato ingresado no es permitido.'];
+    const FILE_AM_ERROR_004 = ['code' => 'FILE_AM_ERROR_004', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_005 = ['code' => 'FILE_AM_ERROR_005', 'message' => 'El dato ingresado no es permitido.'];
+    const FILE_AM_ERROR_006 = ['code' => 'FILE_AM_ERROR_006', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_007 = ['code' => 'FILE_AM_ERROR_007', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_008 = ['code' => 'FILE_AM_ERROR_008', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_009 = ['code' => 'FILE_AM_ERROR_009', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_010 = ['code' => 'FILE_AM_ERROR_010', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AM_ERROR_011 = ['code' => 'FILE_AM_ERROR_011', 'message' => 'El dato registrado es obligatorio.'];
 
-    // Errores de archivo AC
-    const FILE_AC_ERROR_001 = ['code' => 'FILE_AC_ERROR_001', 'message' => 'El número de la factura es obligatorio.'];
-    const FILE_AC_ERROR_002 = ['code' => 'FILE_AC_ERROR_002', 'message' => 'El código del prestador de servicios de salud es obligatorio.'];
-    const FILE_AC_ERROR_003 = ['code' => 'FILE_AC_ERROR_003', 'message' => 'El tipo de identificación del usuario no es un valor permitido.'];
-    const FILE_AC_ERROR_004 = ['code' => 'FILE_AC_ERROR_004', 'message' => 'La fecha de la consulta es obligatoria.'];
-    const FILE_AC_ERROR_005 = ['code' => 'FILE_AC_ERROR_005', 'message' => 'El código de la consulta no es un valor permitido.'];
-    const FILE_AC_ERROR_006 = ['code' => 'FILE_AC_ERROR_006', 'message' => 'La finalidad de la consulta no es un valor permitido.'];
-    const FILE_AC_ERROR_007 = ['code' => 'FILE_AC_ERROR_007', 'message' => 'La causa externa no es un valor permitido.'];
-    const FILE_AC_ERROR_008 = ['code' => 'FILE_AC_ERROR_008', 'message' => 'La causa externa es obligatoria.'];
-    const FILE_AC_ERROR_009 = ['code' => 'FILE_AC_ERROR_009', 'message' => 'El código de diagnóstico principal es obligatorio.'];
-    const FILE_AC_ERROR_010 = ['code' => 'FILE_AC_ERROR_010', 'message' => 'El código del diagnóstico relacionado No. 1 es obligatorio.'];
-    const FILE_AC_ERROR_011 = ['code' => 'FILE_AC_ERROR_011', 'message' => 'El tipo de diagnóstico principal es obligatorio.'];
-    const FILE_AC_ERROR_012 = ['code' => 'FILE_AC_ERROR_012', 'message' => 'El tipo de diagnóstico principal no es un valor permitido.'];
-    const FILE_AC_ERROR_013 = ['code' => 'FILE_AC_ERROR_013', 'message' => 'El valor de la consulta es obligatorio.'];
-    const FILE_AC_ERROR_014 = ['code' => 'FILE_AC_ERROR_014', 'message' => 'El valor neto a pagar es obligatorio.'];
-
-    //Errores de validaciones XML
-    const FILE_XML_ERROR_001 = ['code' => 'FILE_XML_ERROR_001', 'message' => 'No se pudo leer el archivo XML.'];
-    const FILE_XML_ERROR_002 = ['code' => 'FILE_XML_ERROR_002', 'message' => 'el ValidationResultCode debe ser el numero 2.'];
-    const FILE_XML_ERROR_003 = ['code' => 'FILE_XML_ERROR_003', 'message' => 'El número de la factura informado en RIPS no coincide con el informado en la factura electrónica de venta.'];
-    const FILE_XML_ERROR_004 = ['code' => 'FILE_XML_ERROR_004', 'message' => 'El nit del prestador no coincide.'];
-
-    //Errores de validaciones excel
-    const RIP_EXCEL_001 = ['code' => 'RIP_EXCEL_001', 'message' => 'Factura seleccionada no existe.'];
-    const RIP_EXCEL_002 = ['code' => 'RIP_EXCEL_002', 'message' => 'La factura seleccionada no aparece en el Excel.'];
-    const RIP_EXCEL_003 = ['code' => 'RIP_EXCEL_003', 'message' => 'RIP no encontrado.'];
-    const RIP_EXCEL_004 = ['code' => 'RIP_EXCEL_004', 'message' => 'No se encontraron números de factura en el Excel.'];
-    const RIP_EXCEL_005 = ['code' => 'RIP_EXCEL_005', 'message' => 'Las siguientes facturas del Excel no existen en el sistema: %s.'];
-    const RIP_EXCEL_006 = ['code' => 'RIP_EXCEL_006', 'message' => 'El Excel contiene facturas que no pertenecen al RIP seleccionado: %s.'];
-    const RIP_EXCEL_007 = ['code' => 'RIP_EXCEL_007', 'message' => 'El archivo no contiene filas.'];
-    const RIP_EXCEL_008 = ['code' => 'RIP_EXCEL_008', 'message' => 'Estructura inválida en el Excel. Faltan columnas requeridas: %s.'];
-
-    // Errores de validaciones CSV RIPS (estructura/archivo, NO por fila)
-    const RIP_CSV_001 = ['code' => 'RIP_CSV_001', 'message' => 'Archivo CSV vacío o sin contenido.'];
-    const RIP_CSV_002 = ['code' => 'RIP_CSV_002', 'message' => 'Faltan columnas requeridas: %s.'];
-    const RIP_CSV_003 = ['code' => 'RIP_CSV_003', 'message' => 'Cantidad de columnas inválida. Esperadas: %d, detectadas: %d.'];
-    const RIP_CSV_004 = ['code' => 'RIP_CSV_004', 'message' => 'Se detectaron columnas no esperadas: %s.'];
-    const RIP_CSV_005 = ['code' => 'RIP_CSV_005', 'message' => 'Delimitador del CSV no reconocido o inconsistente.'];
-    const RIP_CSV_006 = ['code' => 'RIP_CSV_006', 'message' => 'Encabezados con caracteres inválidos o BOM detectado.'];
-    const RIP_CSV_010 = ['code' => 'RIP_CSV_010', 'message' => 'Error general de lectura del CSV: %s.'];
-
-    // Errores relacionados a archivo/método de lectura (archivo no encontrado / path / permisos)
-    const RIP_CSV_011 = ['code' => 'RIP_CSV_011', 'message' => 'file_path no encontrado en Redis ni en BD.'];
-    const RIP_CSV_012 = ['code' => 'RIP_CSV_012', 'message' => 'Archivo no existe en storage: %s.'];
-    const RIP_CSV_013 = ['code' => 'RIP_CSV_013', 'message' => 'No se pudo abrir el archivo para lectura: %s.'];
-    const RIP_CSV_014 = ['code' => 'RIP_CSV_014', 'message' => 'No se encontró registro del batch en base de datos.'];
-
-
-
+    // ========================================================================
+    // 🛠️ ERRORES DE ARCHIVO AT (Otros Servicios)
+    // ========================================================================
+    const FILE_AT_ERROR_001 = ['code' => 'FILE_AT_ERROR_001', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AT_ERROR_002 = ['code' => 'FILE_AT_ERROR_002', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AT_ERROR_003 = ['code' => 'FILE_AT_ERROR_003', 'message' => 'El dato ingresado no es permitido.'];
+    const FILE_AT_ERROR_004 = ['code' => 'FILE_AT_ERROR_004', 'message' => 'El dato registrado es obligatorio.'];
+    const FILE_AT_ERROR_005 = ['code' => 'FILE_AT_ERROR_005', 'message' => 'El dato registrado es obligatorio.'];
 
 
     /**
-     * Obtiene el mensaje de error asociado a un código de error, con soporte para parámetros dinámicos.
-     *
-     * @param string $code Código de error (por ejemplo, 'FILE_CT_ERROR_008')
-     * @param mixed ...$args Argumentos para formatear el mensaje (por ejemplo, valores para %d o %s)
-     * @return string Mensaje de error formateado
-     * @throws \InvalidArgumentException Si el código no existe
+     * Obtiene el mensaje formateado.
      */
-    public static function getMessage(string $code, ...$args): string
+    public static function getMessage(string $constantName, ...$args): string
     {
-        if (defined("self::$code")) {
-            $error = constant("self::$code");
-            $message = $error['message'] ?? 'Mensaje de error no definido.';
-            return vsprintf($message, $args);
+        if (defined("self::$constantName")) {
+            $error = constant("self::$constantName");
+            $message = $error['message'] ?? 'Error desconocido.';
+            return empty($args) ? $message : vsprintf($message, $args);
         }
-        throw new \InvalidArgumentException("Código de error no encontrado: $code");
+        return "Código de error no encontrado: $constantName";
     }
 
-
     /**
-     * Obtiene todos los códigos de error definidos en la clase.
-     *
-     * @return array Lista de códigos de error con sus mensajes
+     * Obtiene el código (string corto) de una constante.
      */
-    public static function getAllErrorCodes(): array
+    public static function getCode(string $constantName): string
     {
-        $reflection = new \ReflectionClass(__CLASS__);
-        $constants = $reflection->getConstants();
-        return array_filter($constants, function ($value) {
-            return is_array($value) && isset($value['code']);
-        });
+        if (defined("self::$constantName")) {
+            return constant("self::$constantName")['code'];
+        }
+        return 'UNKNOWN_CODE';
     }
 }
