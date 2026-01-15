@@ -4,7 +4,7 @@ namespace App\Helpers\FilingOld;
 
 class FormatDataTxt
 {
-    public static function execute($contenido, $function = null, $delimitador = ",")
+    public static function execute($contenido, $function = null, $delimitador = ',')
     {
         $dataArray = [];
         $lineas = explode("\n", $contenido);

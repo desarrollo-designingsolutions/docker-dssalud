@@ -51,7 +51,7 @@ class ConciliationGenerateConciliationReportSaveRequest extends FormRequest
         ];
     }
 
-       protected function prepareForValidation(): void
+    protected function prepareForValidation(): void
     {
         $merge = [];
 
@@ -76,7 +76,6 @@ class ConciliationGenerateConciliationReportSaveRequest extends FormRequest
 
         $this->merge($merge);
     }
-
 
     public function failedValidation(Validator $validator)
     {

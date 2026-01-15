@@ -17,7 +17,6 @@ class FilingFinishProcessJob implements ShouldBroadcast
 
     public $batchId;
 
-
     /**
      * Create a new event instance.
      */

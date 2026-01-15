@@ -12,7 +12,7 @@ class ConciliationInvoice extends Model
 
     protected $guarded = [];
 
-     protected $casts = [
+    protected $casts = [
         'status' => StatusConciliationInvoiceEnum::class,
     ];
 }

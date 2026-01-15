@@ -2,25 +2,26 @@
 
 namespace App\Jobs\ProcessBatch;
 
-use Illuminate\Bus\Batchable;
-use Illuminate\Bus\Queueable;
-use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use App\Models\ProcessBatchesError;
 use App\Models\User;
 use App\Notifications\BellNotification;
 use Carbon\Carbon;
+use Illuminate\Bus\Batchable;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class ExcelReportData implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $customBatchId;
+
     protected string $userId;
 
     public function __construct(string $customBatchId, string $userId)
@@ -44,11 +45,12 @@ class ExcelReportData implements ShouldQueue
 
                 if ($user = User::find($this->userId)) {
                     $user->notify(new BellNotification([
-                        'title'    => 'Reporte de Datos',
+                        'title' => 'Reporte de Datos',
                         'subtitle' => 'No se encontraron registros para el batch especificado.',
-                        'type'     => 'info',
+                        'type' => 'info',
                     ]));
                 }
+
                 return;
             }
 
@@ -56,19 +58,19 @@ class ExcelReportData implements ShouldQueue
             $numChunks = (int) ceil($totalCount / $chunkSize);
 
             // Clave única para el proceso en Redis
-            $processKey = 'data_report:' . $this->customBatchId . ':' . uniqid();
+            $processKey = 'data_report:'.$this->customBatchId.':'.uniqid();
 
             // Nombre del archivo final
-            $fileName = 'report_data_' . Carbon::now()->format('Ymd_His') . '.xlsx';
+            $fileName = 'report_data_'.Carbon::now()->format('Ymd_His').'.xlsx';
 
             // Metadata del proceso
             Redis::hmset($processKey, [
-                'user_id'        => $this->userId,
-                'file_name'      => $fileName,
-                'started_at'     => Carbon::now()->toIso8601String(),
-                'total_records'  => $totalCount,
-                'processed'      => 0,
-                'batch_id'       => $this->customBatchId,
+                'user_id' => $this->userId,
+                'file_name' => $fileName,
+                'started_at' => Carbon::now()->toIso8601String(),
+                'total_records' => $totalCount,
+                'processed' => 0,
+                'batch_id' => $this->customBatchId,
             ]);
 
             Log::info("Batch {$this->customBatchId}: {$totalCount} filas en {$numChunks} chunks.");
@@ -95,15 +97,15 @@ class ExcelReportData implements ShouldQueue
 
             if ($user = User::find($this->userId)) {
                 $user->notify(new BellNotification([
-                    'title'    => 'Error al generar reporte',
+                    'title' => 'Error al generar reporte',
                     'subtitle' => $e->getMessage(),
-                    'type'     => 'error',
+                    'type' => 'error',
                 ]));
             }
 
             if ($processKey) {
-                $rowsKey = $processKey . ':rows';
-                $seenKey = $processKey . ':seen_rows';
+                $rowsKey = $processKey.':rows';
+                $seenKey = $processKey.':seen_rows';
                 Redis::del($processKey, $rowsKey, $seenKey);
             }
 

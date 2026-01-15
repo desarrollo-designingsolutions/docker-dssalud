@@ -34,4 +34,3 @@ Route::post('/selectInfiniteUser', [QueryController::class, 'selectInfiniteUser'
 Route::post('/selectInfiniteReconciliationGroup', [QueryController::class, 'selectInfiniteReconciliationGroup']);
 
 Route::post('/selectStatusReconciliationGroupEnum', [QueryController::class, 'selectStatusReconciliationGroupEnum']);
-

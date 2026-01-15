@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('conciliation_results', function (Blueprint $table) {
-            $table->foreignUuid("reconciliation_group_id")->after("invoice_audit_id")->constrained("reconciliation_groups");
+            $table->foreignUuid('reconciliation_group_id')->after('invoice_audit_id')->constrained('reconciliation_groups');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('conciliation_results', function (Blueprint $table) {
-            $table->dropConstrainedForeignId("reconciliation_group_id");
+            $table->dropConstrainedForeignId('reconciliation_group_id');
         });
     }
 };

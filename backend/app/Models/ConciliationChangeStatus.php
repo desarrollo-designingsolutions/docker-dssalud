@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ConciliationChangeStatus extends Model
 {
-     use Cacheable,HasUuids;
+    use Cacheable,HasUuids;
 
-     protected $guarded = [];
+    protected $guarded = [];
 }

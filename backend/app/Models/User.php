@@ -89,7 +89,7 @@ class User extends Authenticatable implements Auditable
     // Método de acceso para combinar nombre y apellido
     public function getFullNameAttribute()
     {
-        return $this->name . ' ' . $this->surname;
+        return $this->name.' '.$this->surname;
     }
 
     public function getAllPermissionsAttribute()

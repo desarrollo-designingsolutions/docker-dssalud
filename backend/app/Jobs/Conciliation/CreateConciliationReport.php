@@ -2,34 +2,38 @@
 
 namespace App\Jobs\Conciliation;
 
+use App\Exports\Conciliation\ConciliationGenerateConciliationReportExcelExport;
+use App\Helpers\Constants;
+use App\Models\ConciliationResult;
+use App\Models\User;
+use App\Notifications\BellNotification;
+use App\Repositories\ConciliationReportRepository;
+use App\Repositories\ReconciliationGroupRepository;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Bus;
-use App\Models\User;
-use App\Notifications\BellNotification;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use App\Helpers\Constants;
-use Throwable;
-use Carbon\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\Conciliation\ConciliationGenerateConciliationReportExcelExport;
-use App\Models\ConciliationResult;
-use App\Repositories\ConciliationReportRepository;
-use App\Repositories\ReconciliationGroupRepository;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class CreateConciliationReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $request;
+
     protected $userId;
+
     protected $fileName;
+
     protected $reconciliationGroupId;
+
     protected $processId;
 
     public function __construct($request, $userId, $fileName, $reconciliationGroupId)
@@ -48,18 +52,18 @@ class CreateConciliationReport implements ShouldQueue
             $reconciliationGroupRepository = app(ReconciliationGroupRepository::class);
             $reconciliationGroup = $reconciliationGroupRepository->find(
                 id: $this->reconciliationGroupId,
-                select: ["id", "third_id"]
+                select: ['id', 'third_id']
             );
 
-            if (!$reconciliationGroup) {
-                throw new \Exception("No se encontró el grupo de conciliación");
+            if (! $reconciliationGroup) {
+                throw new \Exception('No se encontró el grupo de conciliación');
             }
 
             // Obtener el conteo TOTAL de conciliation results
-            $totalCount = ConciliationResult::where("reconciliation_group_id", $this->reconciliationGroupId)->count();
+            $totalCount = ConciliationResult::where('reconciliation_group_id', $this->reconciliationGroupId)->count();
 
             if ($totalCount === 0) {
-                throw new \Exception("No se encontraron resultados de conciliación para procesar");
+                throw new \Exception('No se encontraron resultados de conciliación para procesar');
             }
 
             // Preparar Redis - Claves ÚNICAS por usuario y proceso
@@ -75,7 +79,7 @@ class CreateConciliationReport implements ShouldQueue
                 'user_id' => $this->userId,
                 'file_name' => $this->fileName,
                 'started_at' => now()->toISOString(),
-                'total_records' => $totalCount
+                'total_records' => $totalCount,
             ]);
 
             // Inicializar estructura en Redis
@@ -85,7 +89,7 @@ class CreateConciliationReport implements ShouldQueue
                 'initial_gloss_value' => 0,
                 'accepted_value_eps' => 0,
                 'accepted_value_ips' => 0,
-                'ratified_value' => 0
+                'ratified_value' => 0,
             ]);
 
             // Expirar en 24 horas
@@ -124,7 +128,7 @@ class CreateConciliationReport implements ShouldQueue
                 ->name("conciliation_report_export_{$processId}")
                 ->onqueue('download_files')
                 ->catch(function (Throwable $e) use ($userId, $reconciliationGroupId, $processId) {
-                    Log::error('Error en el batch de conciliación: ' . $e->getMessage());
+                    Log::error('Error en el batch de conciliación: '.$e->getMessage());
 
                     // Limpiar Redis en caso de error
                     self::cleanupRedisStatic($reconciliationGroupId, $userId, $processId);
@@ -133,9 +137,9 @@ class CreateConciliationReport implements ShouldQueue
                     $user = User::find($userId);
                     if ($user) {
                         $user->notify(new BellNotification([
-                            'title' => "Error al generar reporte de conciliación",
-                            'subtitle' => "Ocurrió un error durante la generación del reporte",
-                            'type' => 'error'
+                            'title' => 'Error al generar reporte de conciliación',
+                            'subtitle' => 'Ocurrió un error durante la generación del reporte',
+                            'type' => 'error',
                         ]));
                     }
                 })
@@ -155,7 +159,7 @@ class CreateConciliationReport implements ShouldQueue
             return $batch;
 
         } catch (\Exception $e) {
-            Log::error('Error en CreateConciliationReport: ' . $e->getMessage());
+            Log::error('Error en CreateConciliationReport: '.$e->getMessage());
 
             // Limpiar Redis en caso de error
             self::cleanupRedisStatic($this->reconciliationGroupId, $this->userId, $this->processId);
@@ -164,9 +168,9 @@ class CreateConciliationReport implements ShouldQueue
             $user = User::find($this->userId);
             if ($user) {
                 $user->notify(new BellNotification([
-                    'title' => "Error al generar reporte de conciliación",
+                    'title' => 'Error al generar reporte de conciliación',
                     'subtitle' => $e->getMessage(),
-                    'type' => 'error'
+                    'type' => 'error',
                 ]));
             }
         }
@@ -181,11 +185,11 @@ class CreateConciliationReport implements ShouldQueue
             $pattern = "conciliation:{$reconciliationGroupId}:{$userId}:{$processId}:*";
 
             $keys = $redis->keys($pattern);
-            if (!empty($keys)) {
+            if (! empty($keys)) {
                 $redis->del($keys);
             }
         } catch (\Exception $e) {
-            Log::error('Error cleaning up Redis: ' . $e->getMessage());
+            Log::error('Error cleaning up Redis: '.$e->getMessage());
         }
     }
 
@@ -204,13 +208,13 @@ class CreateConciliationReport implements ShouldQueue
 
             // Obtener datos adicionales necesarios para el reporte
             $conciliationReport = app(ConciliationReportRepository::class)->searchOne([
-                "reconciliation_group_id" => $requestData["reconciliation_group_id"]
+                'reconciliation_group_id' => $requestData['reconciliation_group_id'],
             ]);
 
             $reconciliationGroupRepository = app(ReconciliationGroupRepository::class);
             $reconciliationGroup = $reconciliationGroupRepository->find(
                 id: $reconciliationGroupId,
-                select: ["id", "third_id"]
+                select: ['id', 'third_id']
             );
 
             $third = $reconciliationGroup->third;
@@ -262,35 +266,35 @@ class CreateConciliationReport implements ShouldQueue
                     'vp_planning_control_position' => $conciliationReport->vp_planning_control_position,
                 ],
                 'invoices' => [],
-                'redis_invoices_key' => $invoicesKey
+                'redis_invoices_key' => $invoicesKey,
             ];
 
             // Generar Excel
             $excel = Excel::raw(new ConciliationGenerateConciliationReportExcelExport($data), \Maatwebsite\Excel\Excel::XLSX);
 
             // Guardar archivo final
-            $finalPath = 'conciliation_reports/' . $fileName;
+            $finalPath = 'conciliation_reports/'.$fileName;
             Storage::disk(Constants::DISK_FILES)->put($finalPath, $excel);
 
             // Limpiar Redis
             self::cleanupRedisStatic($reconciliationGroupId, $userId, $processId);
 
             // Obtener URL para descarga
-            $absolutePath = env('SYSTEM_URL_BACK') . 'storage/' . $finalPath;
+            $absolutePath = env('SYSTEM_URL_BACK').'storage/'.$finalPath;
 
             // Notificar al usuario
             $user = User::find($userId);
             if ($user) {
                 $user->notify(new BellNotification([
-                    'title' => "Acta de conciliación generado con éxito",
-                    'subtitle' => "Da click en la notificación para descargar",
+                    'title' => 'Acta de conciliación generado con éxito',
+                    'subtitle' => 'Da click en la notificación para descargar',
                     'action_url' => $absolutePath,
                     'openInNewTab' => true,
                 ]));
             }
 
         } catch (\Exception $e) {
-            Log::error('Error al generar reporte final de conciliación: ' . $e->getMessage());
+            Log::error('Error al generar reporte final de conciliación: '.$e->getMessage());
 
             // Limpiar Redis
             self::cleanupRedisStatic($reconciliationGroupId, $userId, $processId);
@@ -299,9 +303,9 @@ class CreateConciliationReport implements ShouldQueue
             $user = User::find($userId);
             if ($user) {
                 $user->notify(new BellNotification([
-                    'title' => "Error al generar reporte de conciliación",
-                    'subtitle' => "Ocurrió un error durante la generación del reporte final",
-                    'type' => 'error'
+                    'title' => 'Error al generar reporte de conciliación',
+                    'subtitle' => 'Ocurrió un error durante la generación del reporte final',
+                    'type' => 'error',
                 ]));
             }
         }

@@ -2,21 +2,21 @@
 
 namespace App\Jobs;
 
-use App\Helpers\Common\ErrorCollector;
-use App\Helpers\Constants;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Redis;
-use App\Jobs\ProcessFilingRecord; // <--- Importamos el nuevo Job hijo
+
+// <--- Importamos el nuevo Job hijo
 
 class TestFilingImport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
+
     protected string $selectedQueue;
 
     public function __construct(string $batchId, string $selectedQueue)

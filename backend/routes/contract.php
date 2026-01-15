@@ -3,7 +3,6 @@
 use App\Http\Controllers\ContractController;
 use Illuminate\Support\Facades\Route;
 
-
 /*
 |--------------------------------------------------------------------------
 | Contract
@@ -23,4 +22,3 @@ Route::get('/contract/{id}/edit', [ContractController::class, 'edit']);
 Route::post('/contract/update/{id}', [ContractController::class, 'update']);
 
 Route::delete('/contract/delete/{id}', [ContractController::class, 'delete']);
-

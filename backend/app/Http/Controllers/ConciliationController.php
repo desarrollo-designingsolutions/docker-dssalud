@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Events\ImportProgressEvent;
 use App\Exports\Conciliation\ConciliationExcelExport;
-use App\Exports\Conciliation\ConciliationGenerateConciliationReportExcelExport;
 use App\Helpers\Constants;
 use App\Http\Requests\Conciliation\ConciliationChangeStatusSaveRequest;
 use App\Http\Requests\Conciliation\ConciliationGenerateConciliationReportSaveRequest;
@@ -16,8 +15,6 @@ use App\Http\Resources\Conciliation\ConciliationShowResource;
 use App\Imports\ConciliationImport\Jobs\ProcessCsvImportJob;
 use App\Jobs\Conciliation\CreateConciliationReport;
 use App\Jobs\CreateConciliationExport;
-use App\Models\AuditoryFinalReport;
-use App\Models\InvoiceAudit;
 use App\Repositories\ConciliationChangeStatusRepository;
 use App\Repositories\ConciliationReportRepository;
 use App\Repositories\ReconciliationGroupInvoiceRepository;
@@ -26,10 +23,8 @@ use App\Services\CacheService;
 use App\Services\Conciliation\ExcelStructureValidator;
 use App\Services\ProcessBatchService;
 use App\Traits\HttpResponseTrait;
-use Carbon\Carbon;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
@@ -143,9 +138,9 @@ class ConciliationController extends Controller
         }
 
         // Guardar archivo CSV
-        $fileName = $fileName . '_' . time() . '.csv';
+        $fileName = $fileName.'_'.time().'.csv';
         $filePath = $uploadedFile->storeAs('temp', $fileName, Constants::DISK_FILES);
-        $fullPath = storage_path('app/public/' . $filePath);
+        $fullPath = storage_path('app/public/'.$filePath);
 
         if (! file_exists($fullPath)) {
             Log::error("Error al guardar el archivo CSV: {$fullPath}");
@@ -203,7 +198,7 @@ class ConciliationController extends Controller
             );
 
             // Siempre despachar el Job de importación de CSV
-            ProcessCsvImportJob::dispatch($fullPath, $batchId, $totalRows,$reconciliation_group_id)->onQueue('import_conciliations');
+            ProcessCsvImportJob::dispatch($fullPath, $batchId, $totalRows, $reconciliation_group_id)->onQueue('import_conciliations');
 
             // Despachar el evento inicial de progreso para la UI
             ImportProgressEvent::dispatch(
@@ -224,7 +219,7 @@ class ConciliationController extends Controller
                 'code' => '200',
             ]);
         } catch (Throwable $e) {
-            Log::error("Error en uploadFile para batch ID {$batchId}: " . $e->getMessage(), [
+            Log::error("Error en uploadFile para batch ID {$batchId}: ".$e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
@@ -234,7 +229,7 @@ class ConciliationController extends Controller
             Redis::connection('redis_6380')->del("batch:{$batchId}:metadata");
 
             return response()->json([
-                'message' => 'Error interno al procesar el archivo: ' . $e->getMessage(),
+                'message' => 'Error interno al procesar el archivo: '.$e->getMessage(),
                 'status' => 'error',
                 'code' => '500',
             ], 500);
@@ -244,33 +239,32 @@ class ConciliationController extends Controller
     public function excelExportConciliationInvoices(Request $request)
     {
         return $this->execute(function () use ($request) {
-            $fileName = 'conciliation_invoices_' . now()->format('Ymd_His') . '.xlsx';
+            $fileName = 'conciliation_invoices_'.now()->format('Ymd_His').'.xlsx';
 
             // Disparamos el job principal
             CreateConciliationExport::dispatch(
                 $request->all(),
-                $request->input("user_id"),
+                $request->input('user_id'),
                 $fileName
             )->onqueue('download_files');
 
             return [
                 'code' => 200, // Accepted
                 'message' => 'La exportación está siendo procesada. Recibirás una notificación cuando esté lista para descargar.',
-                'download_url' => null // O podrías devolver una URL para verificar el estado
+                'download_url' => null, // O podrías devolver una URL para verificar el estado
             ];
         });
     }
 
-
     public function changeStatusForm(Request $request)
     {
-        return $this->execute(function () use ($request) {
+        return $this->execute(function () {
 
             $statusReconciliationGroupEnum = $this->queryController->selectStatusReconciliationGroupEnum(request());
 
             return [
                 'code' => 200,
-                "statusReconciliationGroupEnum" => $statusReconciliationGroupEnum["statusReconciliationGroupEnum_arrayInfo"]
+                'statusReconciliationGroupEnum' => $statusReconciliationGroupEnum['statusReconciliationGroupEnum_arrayInfo'],
             ];
         });
     }
@@ -282,14 +276,13 @@ class ConciliationController extends Controller
             $this->conciliationChangeStatusRepository->store($request->all());
 
             $this->reconciliationGroupRepository->store([
-                "id" => $request->input("reconciliation_group_id"),
-                "status" => $request->input("status"),
+                'id' => $request->input('reconciliation_group_id'),
+                'status' => $request->input('status'),
             ]);
-
 
             return [
                 'code' => 200,
-                'message' => "Registro actualizado con éxito.",
+                'message' => 'Registro actualizado con éxito.',
             ];
         });
     }
@@ -302,7 +295,7 @@ class ConciliationController extends Controller
 
             $form = null;
             $conciliationReport = $this->conciliationReportRepository->searchOne([
-                "reconciliation_group_id" => $request->input("reconciliation_group_id")
+                'reconciliation_group_id' => $request->input('reconciliation_group_id'),
             ]);
             if ($conciliationReport) {
                 $form = new ConciliationGenerateConciliationReportFormResource($conciliationReport);
@@ -320,23 +313,23 @@ class ConciliationController extends Controller
     {
         return $this->execute(function () use ($request) {
             // Guardar el reporte de conciliación
-            $conciliationReport = $this->conciliationReportRepository->store($request->except(["user_id"]));
+            $conciliationReport = $this->conciliationReportRepository->store($request->except(['user_id']));
 
             // Generar nombre único para el archivo
-            $fileName = 'conciliation_report_' . now()->format('Ymd_His') . '.xlsx';
+            $fileName = 'conciliation_report_'.now()->format('Ymd_His').'.xlsx';
 
             // Disparamos el job principal
             CreateConciliationReport::dispatch(
                 $request->all(),
-                $request->input("user_id"),
+                $request->input('user_id'),
                 $fileName,
-                $request->input("reconciliation_group_id")
+                $request->input('reconciliation_group_id')
             )->onqueue('download_files');
 
             return [
                 'code' => 200,
-                'message' => "El reporte de conciliación se está generando en segundo plano. Se le notificará cuando esté listo.",
-                'file_name' => $fileName
+                'message' => 'El reporte de conciliación se está generando en segundo plano. Se le notificará cuando esté listo.',
+                'file_name' => $fileName,
             ];
         });
     }

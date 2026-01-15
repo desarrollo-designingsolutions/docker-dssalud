@@ -1,9 +1,10 @@
 <?php
 
 namespace App\Jobs\Filing;
-use App\Helpers\FilingOld\InternalFileValidator;
+
 use App\Events\ImportProgressEvent;
 use App\Helpers\Common\ErrorCollector;
+use App\Helpers\FilingOld\InternalFileValidator;
 use App\Helpers\FilingOld\ZipValidator;
 use App\Models\ProcessBatch;
 use Illuminate\Bus\Queueable;
@@ -21,8 +22,11 @@ class ValidateZipJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $filePath;
+
     public $batchId;
+
     public $userId;
+
     public $companyId;
 
     public function __construct(string $filePath, string $batchId, string $userId, string $companyId, string $selectedQueue)
@@ -42,7 +46,7 @@ class ValidateZipJob implements ShouldQueue
         event(new ImportProgressEvent($this->batchId, 0, 'Iniciando validación ZIP', 0, 'active', 'ZIP'));
 
         try {
-            $zip = new ZipArchive();
+            $zip = new ZipArchive;
             $numFiles = 0;
             if ($zip->open($this->filePath) === true) {
                 $numFiles = $zip->numFiles;
@@ -58,10 +62,9 @@ class ValidateZipJob implements ShouldQueue
                 'updated_at' => now(),
             ]);
 
-            //Validamos el archivo ZIP y los archivos TXT dentro de él (ESTRUCTURA)
+            // Validamos el archivo ZIP y los archivos TXT dentro de él (ESTRUCTURA)
             $validationResult = ZipValidator::validate($this->filePath, $this->batchId);
             event(new ImportProgressEvent($this->batchId, 0, 'Terminando validación ZIP', 0, 'active', 'ZIP'));
-
 
             if ($validationResult) {
                 for ($i = 0; $i < $zip->numFiles; $i++) {
@@ -79,7 +82,7 @@ class ValidateZipJob implements ShouldQueue
             $errorCount = count($errors);
 
             // Log::info("Validación ZIP completada para batch {$this->batchId}", ['error_count' => $errorCount]);
-            event(new ImportProgressEvent($this->batchId, $numFiles, 'Validación ZIP completada', $errorCount, "active", 'ZIP'));
+            event(new ImportProgressEvent($this->batchId, $numFiles, 'Validación ZIP completada', $errorCount, 'active', 'ZIP'));
 
             $redis->hmset("rip_batch:{$this->batchId}", [
                 'status' => 'zip_validated',

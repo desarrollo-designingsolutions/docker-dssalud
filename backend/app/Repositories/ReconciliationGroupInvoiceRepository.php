@@ -3,8 +3,8 @@
 namespace App\Repositories;
 
 use App\Helpers\Constants;
-use App\Models\ReconciliationGroupInvoice;
 use App\Models\ConciliationResult;
+use App\Models\ReconciliationGroupInvoice;
 use App\QueryBuilder\Sort\RelatedTableSort;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
@@ -30,7 +30,7 @@ class ReconciliationGroupInvoiceRepository extends BaseRepository
                 'sum_accepted_value_ips' => ConciliationResult::selectRaw('SUM(accepted_value_ips)')
                     ->whereColumn('invoice_audit_id', 'reconciliation_group_invoices.invoice_audit_id'),
                 'sum_eps_ratified_value' => ConciliationResult::selectRaw('SUM(eps_ratified_value)')
-                    ->whereColumn('invoice_audit_id', 'reconciliation_group_invoices.invoice_audit_id')
+                    ->whereColumn('invoice_audit_id', 'reconciliation_group_invoices.invoice_audit_id'),
             ])
 
             ->allowedFilters([
@@ -97,9 +97,9 @@ class ReconciliationGroupInvoiceRepository extends BaseRepository
                     'contract_number',
                     'invoice_audit_id',
                 )),
-                "sum_accepted_value_eps",
-                "sum_accepted_value_ips",
-                "sum_eps_ratified_value",
+                'sum_accepted_value_eps',
+                'sum_accepted_value_ips',
+                'sum_eps_ratified_value',
 
             ])
             ->where(function ($query) use ($request) {
@@ -136,7 +136,7 @@ class ReconciliationGroupInvoiceRepository extends BaseRepository
                 })
                 ->where(function ($query) use ($request) {
                     if (isset($request['searchQueryInfinite']) && ! empty($request['searchQueryInfinite'])) {
-                        $query->orWhere('name', 'like', '%' . $request['searchQueryInfinite'] . '%');
+                        $query->orWhere('name', 'like', '%'.$request['searchQueryInfinite'].'%');
                     }
                 });
 
@@ -201,7 +201,6 @@ class ReconciliationGroupInvoiceRepository extends BaseRepository
         return $data;
     }
 
-
     public function getConciliationInvoicesChunk($request = [])
     {
         $query = QueryBuilder::for($this->model->query())
@@ -211,12 +210,12 @@ class ReconciliationGroupInvoiceRepository extends BaseRepository
                 'sum_accepted_value_ips' => ConciliationResult::selectRaw('SUM(accepted_value_ips)')
                     ->whereColumn('invoice_audit_id', 'reconciliation_group_invoices.invoice_audit_id'),
                 'sum_eps_ratified_value' => ConciliationResult::selectRaw('SUM(eps_ratified_value)')
-                    ->whereColumn('invoice_audit_id', 'reconciliation_group_invoices.invoice_audit_id')
+                    ->whereColumn('invoice_audit_id', 'reconciliation_group_invoices.invoice_audit_id'),
             ])
             ->allowedFilters([/* tus filtros actuales */])
             ->allowedSorts([/* tus sorts actuales */])
             ->with(['invoiceAudit.auditoryFinalReport'])
-            ->when(!empty($request['reconciliation_group_id']), function ($query) use ($request) {
+            ->when(! empty($request['reconciliation_group_id']), function ($query) use ($request) {
                 $query->where('reconciliation_group_id', $request['reconciliation_group_id']);
             });
 

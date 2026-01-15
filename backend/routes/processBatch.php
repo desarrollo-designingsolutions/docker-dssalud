@@ -18,4 +18,3 @@ Route::post('/processBatch/generateCsvReportErrors', [ProcessBatchController::cl
 Route::post('/processBatch/generateExcelReportData', [ProcessBatchController::class, 'generateExcelReportData']);
 
 Route::get('/processBatch/status/{batchId}', [ProcessBatchController::class, 'getBatchStatus']);
-

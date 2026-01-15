@@ -590,7 +590,8 @@ function getValueSelectInfinite($field, $value = 'value')
     return isset($field) && is_array($field) ? $field[$value] : $field;
 }
 
-function ensureUtf8($data) {
+function ensureUtf8($data)
+{
     if (is_array($data)) {
         return array_map('ensureUtf8', $data); // Recursivamente procesa arreglos
     } elseif (is_string($data)) {
@@ -598,8 +599,10 @@ function ensureUtf8($data) {
         if (mb_check_encoding($data, 'UTF-8')) {
             return $data;
         }
+
         // Convierte de ISO-8859-1 (o Windows-1252) a UTF-8
         return utf8_encode($data);
     }
+
     return $data; // Retorna otros tipos sin cambios
 }

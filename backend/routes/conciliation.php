@@ -24,13 +24,11 @@ Route::middleware(['check.permission:conciliation.list'])->group(function () {
 
     Route::post('/conciliation/uploadFile', [ConciliationController::class, 'uploadFile']);
 
-
     /*
     |--------------------------------------------------------------------------
     | Conciliation Change Status
     |--------------------------------------------------------------------------
     */
-
 
     Route::get('/conciliation/changeStatus/form', [ConciliationController::class, 'changeStatusForm']);
 

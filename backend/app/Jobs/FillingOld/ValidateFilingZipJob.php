@@ -2,16 +2,16 @@
 
 namespace App\Jobs\FillingOld;
 
-use App\Helpers\Common\ErrorCollector;
-use App\Helpers\FilingOld\ErrorCodes; // <--- Namespace correcto
 use App\Events\ImportProgressEvent;
+use App\Helpers\Common\ErrorCollector; // <--- Namespace correcto
+use App\Helpers\FilingOld\ErrorCodes;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use ZipArchive;
 
 class ValidateFilingZipJob implements ShouldQueue
@@ -19,6 +19,7 @@ class ValidateFilingZipJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
+
     protected string $selectedQueue;
 
     public function __construct(string $batchId, string $selectedQueue)
@@ -35,8 +36,8 @@ class ValidateFilingZipJob implements ShouldQueue
 
         $metadata = $redis->hgetall($redisKey);
         $fullPath = $metadata['full_path'] ?? null;
-        if (!$fullPath && isset($metadata['path_zip'])) {
-            $fullPath = storage_path('app/public/' . $metadata['path_zip']);
+        if (! $fullPath && isset($metadata['path_zip'])) {
+            $fullPath = storage_path('app/public/'.$metadata['path_zip']);
         }
 
         event(new ImportProgressEvent(
@@ -44,13 +45,15 @@ class ValidateFilingZipJob implements ShouldQueue
         ));
 
         // 1. VALIDACIONES FÍSICAS
-        if (!$fullPath || !file_exists($fullPath)) {
+        if (! $fullPath || ! file_exists($fullPath)) {
             $this->failJobAndStop('ZIP_CRITICAL_001'); // Archivo no existe
+
             return;
         }
 
         if (strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) !== 'zip') {
             $this->failJobAndStop('ZIP_CRITICAL_002'); // No es .zip
+
             return;
         }
 
@@ -59,6 +62,7 @@ class ValidateFilingZipJob implements ShouldQueue
 
         if ($res !== true) {
             $this->failJobAndStop('ZIP_CRITICAL_003'); // Corrupto o error de lectura
+
             return;
         }
 
@@ -84,6 +88,7 @@ class ValidateFilingZipJob implements ShouldQueue
         if ($hasFolders) {
             $zip->close();
             $this->failJobAndStop('ZIP_CONTENT_001');
+
             return;
         }
 
@@ -93,12 +98,14 @@ class ValidateFilingZipJob implements ShouldQueue
         if ($cleanCount > 10) {
             $zip->close();
             $this->failJobAndStop('ZIP_CONTENT_002', $cleanCount); // Pasa argumento %d
+
             return;
         }
         // Validación: Cantidad Mínima
         if ($cleanCount < 4) {
             $zip->close();
             $this->failJobAndStop('ZIP_CONTENT_003', $cleanCount); // Pasa argumento %d
+
             return;
         }
 
@@ -110,14 +117,26 @@ class ValidateFilingZipJob implements ShouldQueue
 
         foreach ($validFileNames as $name) {
             $prefix = strtoupper(substr(basename($name), 0, 2));
-            if ($prefix === 'AF') $hasAF = true;
-            if ($prefix === 'US') $hasUS = true;
-            if (in_array($prefix, ['AC', 'AP', 'AM', 'AT'])) $hasDetail = true;
+            if ($prefix === 'AF') {
+                $hasAF = true;
+            }
+            if ($prefix === 'US') {
+                $hasUS = true;
+            }
+            if (in_array($prefix, ['AC', 'AP', 'AM', 'AT'])) {
+                $hasDetail = true;
+            }
         }
 
-        if (!$hasAF) $missingErrors[] = 'ZIP_MISSING_AF';
-        if (!$hasUS) $missingErrors[] = 'ZIP_MISSING_US';
-        if (!$hasDetail) $missingErrors[] = 'ZIP_MISSING_DETAIL';
+        if (! $hasAF) {
+            $missingErrors[] = 'ZIP_MISSING_AF';
+        }
+        if (! $hasUS) {
+            $missingErrors[] = 'ZIP_MISSING_US';
+        }
+        if (! $hasDetail) {
+            $missingErrors[] = 'ZIP_MISSING_DETAIL';
+        }
 
         if (count($missingErrors) > 0) {
             $zip->close();
@@ -133,7 +152,8 @@ class ValidateFilingZipJob implements ShouldQueue
                     null
                 );
             }
-            $this->finalizeAsFailed(count($missingErrors) . " archivos requeridos faltantes.");
+            $this->finalizeAsFailed(count($missingErrors).' archivos requeridos faltantes.');
+
             return;
         }
 
@@ -147,15 +167,15 @@ class ValidateFilingZipJob implements ShouldQueue
             'total_rows' => $cleanCount,
             'processed_records' => 0,
             'total_files_in_zip' => $cleanCount,
-            'file_list' => json_encode($validFileNames)
+            'file_list' => json_encode($validFileNames),
         ]);
 
         Log::info("Batch {$this->batchId}: ZIP validado. {$cleanCount} archivos.");
 
-        event(new ImportProgressEvent($this->batchId, 0, "Extrayendo...", 0, 'active', 'Phase 2 Start'));
+        event(new ImportProgressEvent($this->batchId, 0, 'Extrayendo...', 0, 'active', 'Phase 2 Start'));
 
         DistributeFilingFilesJob::dispatch($this->batchId, $this->selectedQueue)
-             ->onQueue($this->selectedQueue);
+            ->onQueue($this->selectedQueue);
     }
 
     /**

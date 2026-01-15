@@ -28,7 +28,7 @@ class Patient extends Model
 
     public function getFullNameAttribute()
     {
-        return $this->first_name . ' ' . $this->second_name . ' ' . $this->first_surname . ' ' . $this->second_surname;
+        return $this->first_name.' '.$this->second_name.' '.$this->first_surname.' '.$this->second_surname;
     }
 
     public function invoice_audit(): BelongsTo
@@ -63,7 +63,7 @@ class Patient extends Model
                     StatusAssignmentEnum::ASSIGNMENT_EST_003->value
                 );
 
-                if (!empty($request['user_id'])) {
+                if (! empty($request['user_id'])) {
                     $query->where('user_id', $request['user_id']);
                 }
             })

@@ -69,7 +69,7 @@ class ErrorCollector
         Redis::connection('redis_6380')->del("import_errors:{$batchId}");
     }
 
-   /**
+    /**
      * Guarda los errores en la base de datos de manera eficiente con la memoria.
      */
     public static function saveErrorsToDatabase(string $batchId, string $status = 'failed'): void
@@ -94,6 +94,7 @@ class ErrorCollector
             ]);
             $redis->hmset("batch:{$batchId}:metadata", $metadata);
             self::clear($batchId);
+
             return;
         }
 
@@ -109,7 +110,9 @@ class ErrorCollector
             // Traemos solo 500 elementos
             $rawErrors = $redis->lrange($errorKey, $i, $i + $batchSize - 1);
 
-            if (empty($rawErrors)) break;
+            if (empty($rawErrors)) {
+                break;
+            }
 
             $chunkData = [];
             foreach ($rawErrors as $errorJson) {
@@ -132,7 +135,7 @@ class ErrorCollector
             try {
                 ProcessBatchesError::insert($chunkData);
             } catch (\Exception $e) {
-                Log::error("Error insertando chunk errores batch {$batchId}: " . $e->getMessage());
+                Log::error("Error insertando chunk errores batch {$batchId}: ".$e->getMessage());
             }
 
             // Liberamos memoria de este ciclo

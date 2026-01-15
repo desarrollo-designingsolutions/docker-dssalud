@@ -39,7 +39,7 @@ class FilingInvoice extends Model
                 // Generar el siguiente número de caso al nuevo registro
                 $case_number = $lastFiling ? (int) $lastFiling->case_number + 1 : $numberCaseInitial;
 
-                Log::info('Asignando número de caso: ' . $case_number);
+                Log::info('Asignando número de caso: '.$case_number);
                 // Asignar el siguiente número de caso al nuevo registro
                 $model->case_number = $case_number;
             });
@@ -75,7 +75,7 @@ class FilingInvoice extends Model
     {
         return $this->files()->count();
     }
-    
+
     public function invoiceAudit()
     {
         return $this->hasOne(InvoiceAudit::class, 'filing_invoice_id', 'id');

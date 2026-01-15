@@ -3,16 +3,15 @@
 namespace App\Jobs;
 
 use App\Helpers\Constants;
+use App\Models\ReconciliationGroupInvoice;
+use App\Models\User;
+use App\Notifications\BellNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\DB;
-use App\Models\ReconciliationGroupInvoice;
-use App\Models\User;
-use App\Notifications\BellNotification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -22,7 +21,9 @@ class CreateConciliationExport implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $request;
+
     protected $userId;
+
     protected $fileName;
 
     public function __construct($request, $userId, $fileName)
@@ -36,14 +37,14 @@ class CreateConciliationExport implements ShouldQueue
     {
         // Primero obtenemos el conteo total
         $totalCount = ReconciliationGroupInvoice::when(
-            !empty($this->request['reconciliation_group_id']),
-            fn($q) => $q->where('reconciliation_group_id', $this->request['reconciliation_group_id'])
+            ! empty($this->request['reconciliation_group_id']),
+            fn ($q) => $q->where('reconciliation_group_id', $this->request['reconciliation_group_id'])
         )->count();
         // Log::info("totalCount", [$totalCount]);
 
         $chunkSize = 500; // Tamaño de cada chunk
         $chunks = ceil($totalCount / $chunkSize);
-        $tempFileName = 'conciliation_' . now()->format('Ymd_His') . '.csv';
+        $tempFileName = 'conciliation_'.now()->format('Ymd_His').'.csv';
 
         // Crear encabezados
         $headers = [
@@ -55,10 +56,10 @@ class CreateConciliationExport implements ShouldQueue
             'Estado',
             'Suma valor ips',
             'Suma valor eps',
-            'Suma valor eps ratificado'
+            'Suma valor eps ratificado',
         ];
 
-        Storage::disk(Constants::DISK_FILES)->put('temp/exports/' . $tempFileName, implode(',', $headers) . "\n");
+        Storage::disk(Constants::DISK_FILES)->put('temp/exports/'.$tempFileName, implode(',', $headers)."\n");
 
         // Crear batch de jobs
         $jobs = [];
@@ -81,7 +82,7 @@ class CreateConciliationExport implements ShouldQueue
             ->name('conciliation_export')
             ->onqueue('download_files')
             ->catch(function (Throwable $e) {
-                Log::error('Error en el batch: ' . $e->getMessage());
+                Log::error('Error en el batch: '.$e->getMessage());
             })
             ->finally(function () use ($tempFileName, $fileName, $userId) {
                 // Cuando todos los chunks estén listos, podemos:
@@ -89,22 +90,19 @@ class CreateConciliationExport implements ShouldQueue
                 // 2. Mover el archivo a la ubicación final
                 // 3. Notificar al usuario
 
-                $finalPath = 'exports/' . $fileName;
-                Storage::disk(Constants::DISK_FILES)->move('temp/exports/' . $tempFileName, $finalPath);
-
+                $finalPath = 'exports/'.$fileName;
+                Storage::disk(Constants::DISK_FILES)->move('temp/exports/'.$tempFileName, $finalPath);
 
                 // Obtener URL completa para descarga
-                $absolutePath = env('SYSTEM_URL_BACK') . 'storage/' . $finalPath;
+                $absolutePath = env('SYSTEM_URL_BACK').'storage/'.$finalPath;
                 // Ejemplo resultado: "http://tudominio.com/storage/exports/archivo.xlsx"
-
-
 
                 // Log::info("finalizo");
 
-                $user = User::select("id")->find($userId);
-                $data =  [
-                    'title' => "Listado de facturas procesado con éxito",
-                    'subtitle' => "Da click en la notificación para descargar",
+                $user = User::select('id')->find($userId);
+                $data = [
+                    'title' => 'Listado de facturas procesado con éxito',
+                    'subtitle' => 'Da click en la notificación para descargar',
                     'action_url' => $absolutePath,
                     'openInNewTab' => true,
                 ];
@@ -124,7 +122,7 @@ class CreateConciliationExport implements ShouldQueue
     {
         // Elimina elementos que no sean serializables
         return collect($request)
-            ->reject(fn($item) => is_object($item) && !method_exists($item, '__serialize'))
+            ->reject(fn ($item) => is_object($item) && ! method_exists($item, '__serialize'))
             ->toArray();
     }
 }

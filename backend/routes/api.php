@@ -16,8 +16,5 @@ Route::post('/password/email', [PassportAuthController::class, 'sendResetLink'])
 
 Route::post('/password/reset', [PassportAuthController::class, 'passwordReset']);
 
-
-
-
 // EJEMPLO ARMADO DE IMPORTACION
 Route::post('/import/prueba', [PassportAuthController::class, 'prueba']);

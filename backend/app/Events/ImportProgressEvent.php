@@ -77,7 +77,7 @@ class ImportProgressEvent implements ShouldBroadcastNow
                     }
                 }
             } catch (\Exception $e) {
-                Log::warning('Error calculando métricas de progreso: ' . $e->getMessage());
+                Log::warning('Error calculando métricas de progreso: '.$e->getMessage());
             }
         }
     }
@@ -96,7 +96,7 @@ class ImportProgressEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): Channel
     {
-        return new Channel('import.progress.' . $this->batchId);
+        return new Channel('import.progress.'.$this->batchId);
     }
 
     public function broadcastAs(): string

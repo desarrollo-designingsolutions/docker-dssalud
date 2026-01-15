@@ -2,18 +2,8 @@
 
 namespace App\Jobs\FillingOld;
 
-use App\Helpers\Common\ErrorCollector;
-use App\Helpers\FilingOld\ErrorCodes; // <--- Namespace correcto
 use App\Events\ImportProgressEvent;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Log;
-
-// IMPORTA TUS VALIDADORES AQUÍ
+use App\Helpers\Common\ErrorCollector; // <--- Namespace correcto
 use App\Helpers\FilingOld\ACFileValidator;
 use App\Helpers\FilingOld\AFFileValidator;
 use App\Helpers\FilingOld\AHFileValidator;
@@ -22,15 +12,26 @@ use App\Helpers\FilingOld\ANFileValidator;
 use App\Helpers\FilingOld\APFileValidator;
 use App\Helpers\FilingOld\ATFileValidator;
 use App\Helpers\FilingOld\AUFileValidator;
+// IMPORTA TUS VALIDADORES AQUÍ
 use App\Helpers\FilingOld\CTFileValidator;
+use App\Helpers\FilingOld\ErrorCodes;
 use App\Helpers\FilingOld\USFileValidator;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class ProcessFilingChunkJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
+
     public string $fileName;
+
     public array $chunkData;
 
     public function __construct(string $batchId, string $fileName, array $chunkData)
@@ -96,17 +97,17 @@ class ProcessFilingChunkJob implements ShouldQueue
             // 2. Actualizar Metadata final en Redis
             $redis->hmset($redisKeyMeta, [
                 'status' => $finalStatus,
-                'progress' => 100
+                'progress' => 100,
             ]);
 
             // 3. Evento Final (100%)
             event(new ImportProgressEvent(
                 $this->batchId,
                 $grandTotal,
-                "Proceso Finalizado. Registros validados.",
+                'Proceso Finalizado. Registros validados.',
                 $currentErrors,
                 $finalStatus,
-                "Validación completada."
+                'Validación completada.'
             ));
 
             Log::info("Batch {$this->batchId} finalizado correctamente por Worker.");
@@ -119,7 +120,7 @@ class ProcessFilingChunkJob implements ShouldQueue
             event(new ImportProgressEvent(
                 $this->batchId,
                 $newGlobalTotal,
-                "Validando información...",
+                'Validando información...',
                 $currentErrors,
                 'active',
                 $msgElement
@@ -133,16 +134,26 @@ class ProcessFilingChunkJob implements ShouldQueue
         $rawLine = implode(',', $dataRow);
 
         switch ($prefix) {
-            case 'CT': CTFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'US': USFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AF': AFFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AC': ACFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AP': APFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AU': AUFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AH': AHFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AN': ANFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AM': AMFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
-            case 'AT': ATFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId); break;
+            case 'CT': CTFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'US': USFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AF': AFFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AC': ACFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AP': APFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AU': AUFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AH': AHFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AN': ANFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AM': AMFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
+            case 'AT': ATFileValidator::validate($fileName, $rawLine, $rowNum, $this->batchId);
+                break;
             default: break;
         }
     }

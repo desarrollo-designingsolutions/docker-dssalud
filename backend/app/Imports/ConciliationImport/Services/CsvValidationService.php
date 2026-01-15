@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 class CsvValidationService
 {
     use ImportHelper;
+
     protected array $requiredHeaders = [
         'ID',
         'FACTURA_ID', // Este es el NUMERO_FACTURA en el CSV
@@ -94,13 +95,13 @@ class CsvValidationService
     public function validateCsv(string $filePath, string $reconciliation_group_id): array
     {
         $cachePrefix = config('database.redis.options.prefix', '');
-        Log::info("ingreso en validateCsv");
+        Log::info('ingreso en validateCsv');
 
         // Redis::connection('redis_6380')->del("import_errors:{$this->batchId}");
 
-        $keysToClean = Redis::connection('redis_6380')->keys($cachePrefix . "csv_factura_total_counts:{$this->batchId}");
-        $keysToClean = array_merge($keysToClean, Redis::connection('redis_6380')->keys($cachePrefix . "csv_factura_rows:{$this->batchId}:*"));
-        $keysToClean = array_merge($keysToClean, Redis::connection('redis_6380')->keys($cachePrefix . "csv_unique_factura_ids:{$this->batchId}"));
+        $keysToClean = Redis::connection('redis_6380')->keys($cachePrefix."csv_factura_total_counts:{$this->batchId}");
+        $keysToClean = array_merge($keysToClean, Redis::connection('redis_6380')->keys($cachePrefix."csv_factura_rows:{$this->batchId}:*"));
+        $keysToClean = array_merge($keysToClean, Redis::connection('redis_6380')->keys($cachePrefix."csv_unique_factura_ids:{$this->batchId}"));
 
         if (! empty($keysToClean)) {
             // Log::info(sprintf("DEBUG VALIDATION: Limpiando %d claves de Redis al inicio de la validación.", count($keysToClean)));
@@ -129,7 +130,7 @@ class CsvValidationService
         if ($this->eventDispatcher) {
             ($this->eventDispatcher)(0, 'Extrayendo IDs para precarga de información', 'active', 'Extrayendo IDs para precarga de información...');
         }
-        $valuesFromCsv = $this->getUniqueValuesFromCsv($filePath, ['ID', "FACTURA_ID"]);
+        $valuesFromCsv = $this->getUniqueValuesFromCsv($filePath, ['ID', 'FACTURA_ID']);
 
         if (! empty($valuesFromCsv)) {
             $fields = [
@@ -138,11 +139,10 @@ class CsvValidationService
             ];
 
             $this->preloadAuditoryFieldsForCsvIds($filePath, $valuesFromCsv, $fields);
-            Log::info("Precarga de datos completada.");
+            Log::info('Precarga de datos completada.');
             if ($this->eventDispatcher) {
                 ($this->eventDispatcher)(0, 'Precarga de datos completada', 'active', 'Valores precargados');
             }
-
 
             if ($this->eventDispatcher) {
                 ($this->eventDispatcher)(
@@ -153,8 +153,8 @@ class CsvValidationService
                 );
             }
 
-            Log::info("valuesFromCsv", $valuesFromCsv["FACTURA_ID"]);
-            //comentado para el sabado pruebas con cliente
+            Log::info('valuesFromCsv', $valuesFromCsv['FACTURA_ID']);
+            // comentado para el sabado pruebas con cliente
             // $this->validarFacturaIdsEnReconciliationGroupInvoice($valuesFromCsv["FACTURA_ID"], $reconciliation_group_id);
             // if ($this->eventDispatcher) {
             //     ($this->eventDispatcher)(
@@ -167,8 +167,6 @@ class CsvValidationService
         } else {
             // Log::warning("No se encontraron valores en el CSV para precargar datos de auditoría para la validación.");
         }
-
-
 
         if ($this->eventDispatcher) {
             ($this->eventDispatcher)(0, 'Validación de lineas', 'active', 'Validación de lineas...');
@@ -268,7 +266,7 @@ class CsvValidationService
                     $data[$requiredHeader] = ''; // Si no se encuentra, asignar vacío
                 }
             }
-            //recorre el arreglo recursivamente y convierte todas las cadenas a UTF-8 usando utf8_encode
+            // recorre el arreglo recursivamente y convierte todas las cadenas a UTF-8 usando utf8_encode
             $data = ensureUtf8($data);
 
             // Recolección de datos para la validación de "Facturas Completas"
@@ -335,7 +333,7 @@ class CsvValidationService
             // 4. Validación cruzada de montos (usando Redis con clave específica del batch)
             if (isset($data['ID']) && ! empty(trim($data['ID']))) {
                 $auditoryReportId = trim($data['ID']);
-                $redisKey = "auditoryfinalreport_fields_master";
+                $redisKey = 'auditoryfinalreport_fields_master';
 
                 // Obtener el valor JSON desde el hash
                 $jsonValue = Redis::connection('redis_6380')->hget($redisKey, $auditoryReportId);
@@ -370,7 +368,6 @@ class CsvValidationService
                 }
             }
 
-
             if ($processedRows % $dispatchInterval === 0 || $processedRows === $this->totalRows) {
                 if ($this->eventDispatcher) {
                     ($this->eventDispatcher)(
@@ -394,22 +391,19 @@ class CsvValidationService
         }
     }
 
-
     /**
      * Valida concurrentemente si los auditory_final_report_id ya existen en conciliation_results.
      *
-     * @param string $filePath Ruta completa al archivo CSV.
+     * @param  string  $filePath  Ruta completa al archivo CSV.
      */
     protected function validateAuditoryFinalReportIds(string $filePath): void
     {
-        Log::info("ingreso en validateAuditoryFinalReportIds");
+        Log::info('ingreso en validateAuditoryFinalReportIds');
 
         $numberOfProcesses = 10;
         $tasks = [];
         $batchSize = 100; // Tamaño del lote para cada tarea concurrente
         $requiredHeaders = $this->requiredHeaders; // Capturar encabezados para evitar usar $this en el closure
-
-
 
         $batchId = $this->batchId;
         for ($i = 0; $i < $numberOfProcesses; $i++) {
@@ -428,7 +422,7 @@ class CsvValidationService
                     $row = array_map('trim', $row);
                     $row = ensureUtf8($row);
                     $auditory_final_report_id = trim($row[0] ?? '');
-                    if (!empty($auditory_final_report_id)) {
+                    if (! empty($auditory_final_report_id)) {
                         $idsToCheck[] = [
                             'id' => $auditory_final_report_id,
                             'rowNumber' => $currentLine + 1, // +1 porque se salta la cabecera
@@ -473,7 +467,7 @@ class CsvValidationService
                 }
 
                 // Procesar el lote final
-                if (!empty($idsToCheck)) {
+                if (! empty($idsToCheck)) {
                     $ids = array_column($idsToCheck, 'id');
                     $existingIds = DB::table('conciliation_results')
                         ->whereIn('auditory_final_report_id', $ids)
@@ -504,6 +498,7 @@ class CsvValidationService
                 }
 
                 fclose($handle);
+
                 return true;
             };
         }
@@ -511,23 +506,23 @@ class CsvValidationService
         Concurrency::run($tasks);
     }
 
-
-
     /**
      * Valida y precarga múltiples campos de diferentes tablas a Redis.
      * Valida primero si los IDs existen en la BD antes de precargar.
      *
-     * @param string $filePath Ruta al archivo CSV
-     * @param array $uniqueValues Array asociativo de valores únicos por columna
-     * @param array $fields Configuración de campos
-     * @param bool $stopOnInvalid Si true, detiene la precarga si hay IDs no válidos
+     * @param  string  $filePath  Ruta al archivo CSV
+     * @param  array  $uniqueValues  Array asociativo de valores únicos por columna
+     * @param  array  $fields  Configuración de campos
+     * @param  bool  $stopOnInvalid  Si true, detiene la precarga si hay IDs no válidos
      * @return bool True si la precarga fue exitosa, false si se detuvo por IDs no válidos
+     *
      * @throws \Exception Si hay errores críticos
      */
     public function preloadAuditoryFieldsForCsvIds(string $filePath, array $uniqueValues, array $fields, bool $stopOnInvalid = true): bool
     {
         if (empty($fields) || empty($uniqueValues)) {
             Log::error('Error: No se proporcionaron campos o valores únicos para precargar.', ['fields' => $fields, 'uniqueValues' => $uniqueValues]);
+
             return false;
         }
 
@@ -542,18 +537,19 @@ class CsvValidationService
         // Validar campos y valores únicos
         $missingIds = [];
         foreach ($fields as $fieldName => $config) {
-            if (!isset($config['model']) || !class_exists($config['model']) || !isset($config['field'])) {
+            if (! isset($config['model']) || ! class_exists($config['model']) || ! isset($config['field'])) {
                 Log::error("Error: Configuración inválida para el campo '$fieldName'. Debe incluir 'model' y 'field'.", ['config' => $config]);
+
                 return false;
             }
-            if (!isset($uniqueValues[$fieldName]) || empty($uniqueValues[$fieldName])) {
+            if (! isset($uniqueValues[$fieldName]) || empty($uniqueValues[$fieldName])) {
                 Log::warning("Advertencia: No hay valores únicos para el campo '$fieldName' en el CSV.", ['field' => $fieldName]);
                 $uniqueValues[$fieldName] = [];
             }
 
             // Validar IDs en la BD
             $fieldIds = array_map('strval', $uniqueValues[$fieldName]);
-            if (!empty($fieldIds)) {
+            if (! empty($fieldIds)) {
                 $existingIds = [];
                 foreach (array_chunk($fieldIds, $chunkSize) as $chunk) {
                     if (empty($chunk)) {
@@ -563,19 +559,19 @@ class CsvValidationService
                         $foundIds = $config['model']::whereIn('id', $chunk)->pluck('id')->toArray();
                         $existingIds = array_merge($existingIds, $foundIds);
                     } catch (\Exception $e) {
-                        Log::error("Error al validar IDs para '$fieldName': " . $e->getMessage(), ['chunk' => array_slice($chunk, 0, 10)]);
+                        Log::error("Error al validar IDs para '$fieldName': ".$e->getMessage(), ['chunk' => array_slice($chunk, 0, 10)]);
                         throw $e;
                     }
                 }
                 $fieldMissingIds = array_diff($fieldIds, $existingIds);
-                if (!empty($fieldMissingIds)) {
+                if (! empty($fieldMissingIds)) {
                     $missingIds[$fieldName] = $fieldMissingIds;
                 }
             }
         }
 
         // Registrar IDs no válidos usando addError
-        if (!empty($missingIds)) {
+        if (! empty($missingIds)) {
             $this->storeInvalidIdsWithRows($filePath, $missingIds);
             // if ($stopOnInvalid) {
             //     Log::error("Se encontraron IDs no válidos. Deteniendo precarga.", ['missing_ids' => array_map(fn($ids) => array_slice($ids, 0, 10), $missingIds)]);
@@ -605,7 +601,7 @@ class CsvValidationService
                     $idChunk = array_map('strval', $idChunk);
                     $fieldValues = Redis::connection('redis_6380')->hmget($redisMasterKey, $idChunk);
                     foreach ($idChunk as $index => $id) {
-                        if (!is_null($fieldValues[$index])) {
+                        if (! is_null($fieldValues[$index])) {
                             $foundIdsInMasterCache[$fieldName][] = $id;
                         } else {
                             $idsToLoadFromDb[$fieldName][] = $id;
@@ -623,7 +619,7 @@ class CsvValidationService
             $dbField = $config['field'];
             $redisMasterKey = $this->getRedisMasterKey($modelClass);
 
-            if (!empty($idsToLoadFromDb[$fieldName])) {
+            if (! empty($idsToLoadFromDb[$fieldName])) {
                 $dbLoadCount = 0;
                 $dbLoadStartTime = microtime(true);
                 $dbPipeline = Redis::connection('redis_6380')->pipeline();
@@ -638,7 +634,6 @@ class CsvValidationService
                     $dbReports = $modelClass::select('id', $dbField)
                         ->whereIn('id', $idChunkForDb)
                         ->get();
-
 
                     foreach ($dbReports as $report) {
                         $jsonValue = json_encode($report);
@@ -670,14 +665,15 @@ class CsvValidationService
     /**
      * Registra IDs no válidos en Redis usando addError, mapeando a las filas del CSV.
      *
-     * @param string $filePath Ruta al archivo CSV
-     * @param array $missingIds Array asociativo de IDs no válidos por campo
+     * @param  string  $filePath  Ruta al archivo CSV
+     * @param  array  $missingIds  Array asociativo de IDs no válidos por campo
      */
     protected function storeInvalidIdsWithRows(string $filePath, array $missingIds): void
     {
         $handle = fopen($filePath, 'r');
         if ($handle === false) {
             Log::error("Error al abrir el CSV para mapear IDs no válidos: $filePath");
+
             return;
         }
 
@@ -686,6 +682,7 @@ class CsvValidationService
         if ($headers === false || empty($headers)) {
             Log::error("CSV vacío o sin encabezados: $filePath");
             fclose($handle);
+
             return;
         }
 
@@ -694,8 +691,8 @@ class CsvValidationService
             return strtoupper(trim(preg_replace('/^\xEF\xBB\xBF/', '', $header)));
         }, $headers);
 
-        Log::info("Encabezados normalizados del CSV", ['headers' => $normalizedHeaders]);
-        Log::info("Campos con IDs inválidos", ['fields' => array_keys($missingIds)]);
+        Log::info('Encabezados normalizados del CSV', ['headers' => $normalizedHeaders]);
+        Log::info('Campos con IDs inválidos', ['fields' => array_keys($missingIds)]);
 
         $columnIndices = [];
         foreach (array_keys($missingIds) as $fieldName) {
@@ -704,15 +701,17 @@ class CsvValidationService
             $index = array_search($normalizedField, $normalizedHeaders);
 
             if ($index === false) {
-                Log::error("Columna '$fieldName' no encontrada en el CSV. Encabezados disponibles: " . implode(', ', $normalizedHeaders));
+                Log::error("Columna '$fieldName' no encontrada en el CSV. Encabezados disponibles: ".implode(', ', $normalizedHeaders));
+
                 continue;
             }
             $columnIndices[$fieldName] = $index;
         }
 
         if (empty($columnIndices)) {
-            Log::error("No se pudo mapear ningún campo inválido a columnas del CSV");
+            Log::error('No se pudo mapear ningún campo inválido a columnas del CSV');
             fclose($handle);
+
             return;
         }
 
@@ -727,7 +726,7 @@ class CsvValidationService
         })->each(function ($row) use ($columnIndices, $missingIds, &$rowNumber, &$pipeline) {
             $rowNumber++;
             foreach ($columnIndices as $fieldName => $index) {
-                if (isset($row[$index]) && !empty(trim($row[$index]))) {
+                if (isset($row[$index]) && ! empty(trim($row[$index]))) {
                     $value = (string) trim($row[$index]);
                     if (in_array($value, $missingIds[$fieldName], true)) {
                         $this->addError(
@@ -738,9 +737,6 @@ class CsvValidationService
                             errorValue: $value,
                             originalData: json_encode($row),
                         );
-
-
-
 
                         $pipeline->sadd("invalid_rows:{$this->batchId}", $rowNumber);
                         Log::debug("Fila $rowNumber marcada como inválida por ID $value en campo $fieldName");
@@ -760,6 +756,7 @@ class CsvValidationService
     protected function getRedisMasterKey(string $modelClass): string
     {
         $modelName = strtolower(class_basename($modelClass));
+
         // log::info("getRedisMasterKey", ["{$modelName}_fields_master"]);
         return "{$modelName}_fields_master";
     }
@@ -794,18 +791,17 @@ class CsvValidationService
         return $errors;
     }
 
-    function validarFacturaIdsEnReconciliationGroupInvoice(array $csvInvoiceIds, string $reconciliation_group_id): void
+    public function validarFacturaIdsEnReconciliationGroupInvoice(array $csvInvoiceIds, string $reconciliation_group_id): void
     {
         // Obtener IDs de la base de datos
-        $dbInvoiceIds = ReconciliationGroupInvoice::select(["id","reconciliation_group_id","invoice_audit_id"])
-            ->where("reconciliation_group_id", $reconciliation_group_id)
+        $dbInvoiceIds = ReconciliationGroupInvoice::select(['id', 'reconciliation_group_id', 'invoice_audit_id'])
+            ->where('reconciliation_group_id', $reconciliation_group_id)
             ->get()
-            ->pluck("invoice_audit_id")
+            ->pluck('invoice_audit_id')
             ->toArray();
-        Log::info("dbInvoiceIds", [$csvInvoiceIds]);
-        Log::info("dbInvoiceIds", [$dbInvoiceIds]);
-        Log::info("reconciliation_group_id", [$reconciliation_group_id]);
-
+        Log::info('dbInvoiceIds', [$csvInvoiceIds]);
+        Log::info('dbInvoiceIds', [$dbInvoiceIds]);
+        Log::info('reconciliation_group_id', [$reconciliation_group_id]);
 
         // Convertir ambos arrays a valores únicos para evitar duplicados
         $csvIds = array_unique($csvInvoiceIds);
@@ -822,18 +818,19 @@ class CsvValidationService
                 '',
                 json_encode([])
             );
+
             return;
         }
 
         // Caso 2: Si hay IDs en el CSV que no existen en la BD (validación específica)
         $missingIds = array_diff($csvIds, $dbIds);
 
-        if (!empty($missingIds)) {
+        if (! empty($missingIds)) {
 
             // Agregar error detallado para cada ID faltante
             foreach ($missingIds as $missingId) {
                 $this->addError(
-                    "", // Fila vacia para errores generales de validación
+                    '', // Fila vacia para errores generales de validación
                     'FACTURA_ID',
                     "El ID de factura '$missingId' no existe en este grupo de conciliación",
                     'invalid_factura_id',
@@ -843,7 +840,7 @@ class CsvValidationService
             }
 
             // Log adicional opcional
-            Log::warning("Se encontraron " . count($missingIds) . " ID(s) de FACTURA_ID inválidos");
+            Log::warning('Se encontraron '.count($missingIds).' ID(s) de FACTURA_ID inválidos');
         }
     }
 }

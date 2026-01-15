@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Contract\ContractStoreRequest;
 use App\Http\Resources\Contract\ContractFormResource;
-use App\Http\Resources\Contract\ContractListResource;
 use App\Http\Resources\Contract\ContractPaginateResource;
 use App\Repositories\ContractRepository;
 use App\Traits\HttpResponseTrait;
@@ -43,6 +42,7 @@ class ContractController extends Controller
         return $this->execute(function () {
 
             $thirds = $this->queryController->selectInfiniteThird(request());
+
             return [
                 'code' => 200,
                 ...$thirds,

@@ -38,8 +38,7 @@ class QueryController extends Controller
         protected ThirdRepository $thirdRepository,
         protected CodeGlosaRepository $codeGlosaRepository,
         protected ReconciliationGroupRepository $reconciliationGroupRepository,
-    ) {
-    }
+    ) {}
 
     public function selectInfiniteCountries(Request $request)
     {

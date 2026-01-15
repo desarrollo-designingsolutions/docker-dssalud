@@ -8,7 +8,6 @@ use App\Exports\Service\ServiceListExcelExport;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditListResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateBatcheResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateInvoiceAuditResource;
-use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateInvoiceAuditThirdsResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginatePatientResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateServiceResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateThirdsResource;
@@ -311,9 +310,9 @@ class InvoiceAuditController extends Controller
 
             $this->assignmentRepository->changeStatusAssigmentMasive($request);
 
-            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:assignments_paginate_count_all_data*');
-            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateThirds*');
-            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateBatche*');
+            $this->cacheService->clearByPrefix($this->key_redis_project.'string:assignments_paginate_count_all_data*');
+            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateThirds*');
+            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateBatche*');
 
             return [
                 'code' => 200,
@@ -330,9 +329,9 @@ class InvoiceAuditController extends Controller
 
             $this->assignmentRepository->changeStatusAssigmentMasiveReturn($request);
 
-            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:assignments_paginate_count_all_data*');
-            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateThirds*');
-            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateBatche*');
+            $this->cacheService->clearByPrefix($this->key_redis_project.'string:assignments_paginate_count_all_data*');
+            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateThirds*');
+            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateBatche*');
 
             return [
                 'code' => 200,

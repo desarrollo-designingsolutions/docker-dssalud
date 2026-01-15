@@ -9,5 +9,4 @@ use Illuminate\Database\Eloquent\Model;
 class ThirdDepartment extends Model
 {
     use Cacheable, HasUuids;
-
 }

@@ -44,8 +44,8 @@ trait ImportHelper
 
         $formattedTime = match (true) {
             $executionTime >= 60 => sprintf('%dm %ds', floor($executionTime / 60), $executionTime % 60),
-            $executionTime >= 1 => round($executionTime, 2) . 's',
-            default => round($executionTime * 1000) . 'ms',
+            $executionTime >= 1 => round($executionTime, 2).'s',
+            default => round($executionTime * 1000).'ms',
         };
 
         // Registrar las métricas en el log (funcionalidad original)
@@ -76,8 +76,6 @@ trait ImportHelper
             'metadata' => json_encode($metadata, JSON_UNESCAPED_UNICODE),
         ]);
     }
-
-
 
     /**
      * Precarga los conteos de FACTURA_ID de AuditoryFinalReport (donde valor_glosa > 0) a Redis.
@@ -274,7 +272,7 @@ trait ImportHelper
             if (json_last_error() === JSON_ERROR_NONE) {
                 $errorsToInsert[] = $decodedError;
             } else {
-                Log::error('Failed to decode JSON error from Redis: ' . json_last_error_msg(), ['json' => $errorJson]);
+                Log::error('Failed to decode JSON error from Redis: '.json_last_error_msg(), ['json' => $errorJson]);
             }
         }
 
@@ -289,7 +287,7 @@ trait ImportHelper
                         DB::table('process_batches_errors')->insert($chunk);
                         // Log::info(sprintf('Successfully inserted a chunk of %d errors into process_batches_errors table.', count($chunk)));
                     } catch (\Exception $e) {
-                        Log::error('Failed to bulk insert errors into process_batches_errors: ' . $e->getMessage());
+                        Log::error('Failed to bulk insert errors into process_batches_errors: '.$e->getMessage());
                         Log::error('Database insertion failed for errors chunk:', [
                             'exception' => $e->getMessage(),
                             'code' => $e->getCode(),
@@ -361,7 +359,6 @@ trait ImportHelper
                     $row = array_map('trim', $row); // Elimina espacios en blanco de cada elemento
                     $row = ensureUtf8($row); // Convierte todas las cadenas a UTF-8
 
-
                     $dataToSave[] = [
                         'id' => (string) Str::uuid(),
                         'auditory_final_report_id' => (string) $row[0],
@@ -373,7 +370,7 @@ trait ImportHelper
                         'accepted_value_eps' => (float) str_replace(',', '.', $row[33]),
                         'eps_ratified_value' => (float) str_replace(',', '.', $row[34]),
                         'eps_ratified_value' => (float) str_replace(',', '.', $row[34]),
-                        'observation' =>  $row[35],
+                        'observation' => $row[35],
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -381,7 +378,7 @@ trait ImportHelper
                     // Recolectar datos para actualizar conciliation_invoices
                     $invoicesToUpdate[] = [
                         'invoice_audit_id' => (string) $row[1],
-                        'status' => "CONCILIATION_INVOICE_EST_002", //estado finalizado
+                        'status' => 'CONCILIATION_INVOICE_EST_002', // estado finalizado
                     ];
 
                     if (count($dataToSave) === 1000) {
@@ -391,13 +388,13 @@ trait ImportHelper
                         // Actualizar conciliation_invoices en lotes
                         DB::transaction(function () use ($invoicesToUpdate) {
                             $ids = array_column($invoicesToUpdate, 'invoice_audit_id');
-                            if (!empty($ids)) {
+                            if (! empty($ids)) {
                                 DB::table('conciliation_invoices')
                                     ->whereIn('invoice_audit_id', $ids)
                                     ->update(['status' => 'CONCILIATION_INVOICE_EST_002']);
                             }
                         });
-                        Log::info("Actualizados " . count($invoicesToUpdate) . " registros en conciliation_invoices");
+                        Log::info('Actualizados '.count($invoicesToUpdate).' registros en conciliation_invoices');
 
                         $dataToSave = [];
                         $invoicesToUpdate = [];
@@ -408,17 +405,17 @@ trait ImportHelper
                 }
 
                 // Insertar y actualizar registros restantes
-                if (!empty($dataToSave)) {
+                if (! empty($dataToSave)) {
                     DB::table('conciliation_results')->insert($dataToSave);
                     DB::transaction(function () use ($invoicesToUpdate) {
                         $ids = array_column($invoicesToUpdate, 'invoice_audit_id');
-                        if (!empty($ids)) {
+                        if (! empty($ids)) {
                             DB::table('conciliation_invoices')
                                 ->whereIn('invoice_audit_id', $ids)
                                 ->update(['status' => 'CONCILIATION_INVOICE_EST_002']);
                         }
                     });
-                    Log::info("Actualizados " . count($invoicesToUpdate) . " registros en conciliation_invoices");
+                    Log::info('Actualizados '.count($invoicesToUpdate).' registros en conciliation_invoices');
                 }
 
                 fclose($handle);
@@ -442,7 +439,6 @@ trait ImportHelper
         Redis::connection('redis_6380')->del("batch:{$batchId}:imported_rows_count");
     }
 
-
     public function getUniqueValuesFromCsv(string $filePath, $columnNames, $dispatchInterval = 100): array
     {
         $columnNames = is_array($columnNames) ? $columnNames : [$columnNames];
@@ -451,17 +447,19 @@ trait ImportHelper
         $handle = fopen($filePath, 'r');
         if ($handle === false) {
             Log::error('Error: No se pudo abrir el archivo CSV para extraer valores.', ['path' => $filePath]);
+
             return $uniqueValues;
         }
 
         $headers = fgetcsv($handle, 0, ';');
-        if ($headers && !empty($headers[0])) {
+        if ($headers && ! empty($headers[0])) {
             $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0]);
         }
 
         if ($headers === false || empty($headers)) {
             Log::error('Error: El archivo CSV está vacío o no tiene encabezados válidos.', ['path' => $filePath]);
             fclose($handle);
+
             return $uniqueValues;
         }
 
@@ -471,6 +469,7 @@ trait ImportHelper
             if ($index === false) {
                 Log::error("Error: Columna '{$columnName}' no encontrada en el CSV.", ['headers' => $headers]);
                 fclose($handle);
+
                 return $uniqueValues;
             }
             $columnIndices[$columnName] = $index;

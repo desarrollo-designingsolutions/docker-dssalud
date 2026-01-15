@@ -2,9 +2,9 @@
 
 namespace App\Mappers;
 
-use Illuminate\Support\Str;
 use App\Enums\Filing\TypeFilingEnum;
 use App\Enums\Service\TypeServiceEnum;
+use Illuminate\Support\Str;
 
 class ServiceFilingMapper
 {
@@ -23,11 +23,9 @@ class ServiceFilingMapper
 
         return match ($filingType) {
 
-            TypeFilingEnum::FILING_TYPE_001 =>
-            self::mapOld($serviceType, $json, $context),
+            TypeFilingEnum::FILING_TYPE_001 => self::mapOld($serviceType, $json, $context),
 
-            TypeFilingEnum::FILING_TYPE_002 =>
-            self::map2275($serviceType, $json, $context),
+            TypeFilingEnum::FILING_TYPE_002 => self::map2275($serviceType, $json, $context),
         };
     }
 

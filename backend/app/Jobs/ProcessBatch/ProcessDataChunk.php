@@ -2,40 +2,44 @@
 
 namespace App\Jobs\ProcessBatch;
 
+use App\Models\ProcessBatchesError;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Models\ProcessBatchesError;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class ProcessDataChunk implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $customBatchId;
+
     protected string $processKey;
+
     protected int $offset;
+
     protected int $limit;
+
     protected string $userId;
 
     public function __construct(string $customBatchId, string $processKey, int $offset, int $limit, string $userId)
     {
         $this->customBatchId = $customBatchId;
-        $this->processKey    = $processKey;
-        $this->offset        = $offset;
-        $this->limit         = $limit;
-        $this->userId        = $userId;
+        $this->processKey = $processKey;
+        $this->offset = $offset;
+        $this->limit = $limit;
+        $this->userId = $userId;
         $this->onQueue('download_files');
     }
 
     public function handle(): void
     {
-        $rowsKey = $this->processKey . ':rows';
-        $seenKey = $this->processKey . ':seen_rows';
+        $rowsKey = $this->processKey.':rows';
+        $seenKey = $this->processKey.':seen_rows';
 
         $rows = ProcessBatchesError::where('batch_id', $this->customBatchId)
             ->orderBy('id')
@@ -47,8 +51,9 @@ class ProcessDataChunk implements ShouldQueue
             try {
                 // 1) Decodificar original_data (JSON)
                 $payload = json_decode($row->original_data, true);
-                if (!is_array($payload)) {
+                if (! is_array($payload)) {
                     Log::warning("Row {$row->id}: original_data no es JSON.");
+
                     continue;
                 }
 
@@ -62,8 +67,9 @@ class ProcessDataChunk implements ShouldQueue
                     $decoded = null;
                 }
 
-                if (!is_array($decoded)) {
+                if (! is_array($decoded)) {
                     Log::warning("Row {$row->id}: payload['data'] vacío/no JSON.");
+
                     continue;
                 }
 
@@ -116,6 +122,7 @@ class ProcessDataChunk implements ShouldQueue
     private function getExcludedKeys(): array
     {
         $raw = env('EXPORT_EXCLUDE_KEYS', 'company_id');
+
         return array_values(array_filter(array_map('trim', explode(',', $raw))));
     }
 }

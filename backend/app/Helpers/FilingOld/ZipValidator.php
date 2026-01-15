@@ -2,7 +2,6 @@
 
 namespace App\Helpers\FilingOld;
 
-use Illuminate\Support\Facades\Log;
 use App\Helpers\Common\ErrorCollector;
 use ZipArchive;
 
@@ -21,7 +20,7 @@ class ZipValidator
         ErrorCollector::clear($keyErrorRedis);
 
         // 1. Verificar que sea un archivo y tenga extensión .zip
-        if (!file_exists($filePath) || pathinfo($filePath, PATHINFO_EXTENSION) !== 'zip') {
+        if (! file_exists($filePath) || pathinfo($filePath, PATHINFO_EXTENSION) !== 'zip') {
             ErrorCollector::addError(
                 $keyErrorRedis,
                 'ZIP_ERROR_001', // Código de validación (ajústalo según tu sistema)

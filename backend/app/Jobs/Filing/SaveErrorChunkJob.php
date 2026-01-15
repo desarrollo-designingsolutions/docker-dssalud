@@ -8,26 +8,32 @@ use App\Models\ProcessBatch;
 use App\Models\ProcessBatchesError;
 use App\Models\User;
 use App\Notifications\BellNotification;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
-use Illuminate\Bus\Batchable;
 
 class SaveErrorChunkJob implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $customBatchId;
+
     protected int $offset;
+
     protected int $limit;
+
     protected string $selectedQueue;
+
     protected int $totalErrors;
+
     protected int $numChunks;
+
     protected string $status;
 
     public function __construct(string $customBatchId, int $offset, int $limit, string $selectedQueue, int $totalErrors, int $numChunks, string $status)
@@ -58,6 +64,7 @@ class SaveErrorChunkJob implements ShouldQueue
             if (empty($rawErrors)) {
                 $end = $this->offset + $this->limit - 1;
                 Log::warning("No errors found in range {$this->offset} to {$end} for batch {$this->customBatchId}");
+
                 return;
             }
 
@@ -103,8 +110,6 @@ class SaveErrorChunkJob implements ShouldQueue
                 "{$progressPercent}%" // Progreso en porcentaje
             ));
 
-
-
             if ($processed >= $this->totalErrors) {
                 // Actualizar estado final
                 ProcessBatch::where('batch_id', $this->customBatchId)->update([
@@ -134,7 +139,7 @@ class SaveErrorChunkJob implements ShouldQueue
                         $user->notify(new BellNotification([
                             'title' => 'Validación Completada',
                             'subtitle' => "Se encontraron {$this->totalErrors} errores en el batch.",
-                            'type' => 'error'
+                            'type' => 'error',
                         ]));
                     }
                 }
@@ -147,7 +152,7 @@ class SaveErrorChunkJob implements ShouldQueue
                     $user->notify(new BellNotification([
                         'title' => 'Error al Guardar Chunk de Errores',
                         'subtitle' => "Fallo en chunk {$chunkNumber}: {$e->getMessage()}",
-                        'type' => 'error'
+                        'type' => 'error',
                     ]));
                 }
             }

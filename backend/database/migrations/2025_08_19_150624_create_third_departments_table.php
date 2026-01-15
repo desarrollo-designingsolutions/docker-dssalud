@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('third_departments', function (Blueprint $table) {
-            $table->uuid("id")->primary();
-            $table->foreignUuid("third_id")->constrained();
-            $table->string("municipio")->nullable();
-            $table->string("departamento")->nullable();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('third_id')->constrained();
+            $table->string('municipio')->nullable();
+            $table->string('departamento')->nullable();
             $table->timestamps();
         });
     }

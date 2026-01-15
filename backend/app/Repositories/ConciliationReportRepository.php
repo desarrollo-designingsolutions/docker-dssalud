@@ -94,7 +94,6 @@ class ConciliationReportRepository extends BaseRepository
         return $data;
     }
 
-
     public function searchOne($request = [], $with = [], $idsAllowed = [])
     {
         // Construcción de la consulta
@@ -118,5 +117,4 @@ class ConciliationReportRepository extends BaseRepository
 
         return $data;
     }
-
 }

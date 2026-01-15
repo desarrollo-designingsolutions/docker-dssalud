@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('conciliation_results', function (Blueprint $table) {
-            $table->foreignUuid("invoice_audit_id")->after("auditory_final_report_id")->constrained();
+            $table->foreignUuid('invoice_audit_id')->after('auditory_final_report_id')->constrained();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('conciliation_results', function (Blueprint $table) {
-            $table->dropConstrainedForeignId("invoice_audit_id");
+            $table->dropConstrainedForeignId('invoice_audit_id');
         });
     }
 };

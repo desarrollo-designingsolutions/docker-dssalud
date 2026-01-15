@@ -7,23 +7,24 @@ use App\Enums\Filing\TypeFilingEnum;
 use App\Events\FilingFinishProcessJob;
 use App\Events\ImportProgressEvent;
 use App\Helpers\Common\ErrorCollector;
+use App\Models\Filing;
 use App\Models\ProcessBatch;
 use App\Models\User;
-use App\Models\Filing;
 use App\Notifications\BellNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class SaveErrorsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $batchId;
+
     protected string $selectedQueue;
 
     public function __construct(string $batchId, string $selectedQueue)
@@ -69,7 +70,7 @@ class SaveErrorsJob implements ShouldQueue
                 $this->batchId,
                 "$metadata[total_rows]/$metadata[total_rows]", // Todos los registros procesados
                 'Validación completada',
-                "0", // 0 errores
+                '0', // 0 errores
                 'active',
                 'Ha finalizado sin novedad' // Progreso
             ));
@@ -81,10 +82,11 @@ class SaveErrorsJob implements ShouldQueue
                     $user->notify(new BellNotification([
                         'title' => 'Validación Completada',
                         'subtitle' => 'No se encontraron errores para el batch.',
-                        'type' => 'success'
+                        'type' => 'success',
                     ]));
                 }
             }
+
             return;
         }
 
@@ -109,7 +111,7 @@ class SaveErrorsJob implements ShouldQueue
             event(new ImportProgressEvent(
                 $this->batchId,
                 "$metadata[total_rows]/$metadata[total_rows]", // Todos los registros procesados
-                "Se esta guardando los errores encontrados", // Todos los registros procesados
+                'Se esta guardando los errores encontrados', // Todos los registros procesados
                 $totalErrors, // Total de errores
                 'active',
                 "Guardando errores... ($i/$numChunks)" // Progreso

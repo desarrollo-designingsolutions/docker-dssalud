@@ -11,8 +11,6 @@ use App\Events\FilingRowUpdatedNow;
 use App\Exports\Filing\FilingExcelErrorsValidationExport;
 use App\Exports\Filing\FilingInvoiceExcelErrorsValidationExport;
 use App\Helpers\Constants;
-use App\Helpers\Common\ErrorCollector;
-use App\Events\ImportProgressEvent;
 use App\Http\Requests\Filing\FilingUploadJsonRequest;
 use App\Http\Requests\Filing\FilingUploadZipRequest;
 use App\Http\Resources\Filing\FilingPaginateResource;
@@ -20,16 +18,13 @@ use App\Jobs\File\ProcessMassUpload;
 use App\Jobs\Filing\ProcessFilingValidationTxt;
 use App\Jobs\Filing\ProcessFilingValidationZip;
 use App\Jobs\Filing\ProcessMassXmlUpload;
-use App\Jobs\Filing\SaveErrorsJob;
-use App\Jobs\Filing\ValidateZipJob;
 use App\Jobs\FillingOld\ValidateFilingZipJob;
 use App\Jobs\ProcessRedisBatch;
-use App\Jobs\TestFilingImport;
 use App\Mappers\ServiceFilingMapper;
 use App\Models\InvoiceAudit;
 use App\Models\Patient;
-use App\Models\Service;
 use App\Models\ProcessBatch;
+use App\Models\Service;
 use App\Notifications\BellNotification;
 use App\Repositories\FilingInvoiceRepository;
 use App\Repositories\FilingRepository;
@@ -37,17 +32,15 @@ use App\Repositories\PatientRepository;
 use App\Repositories\SupportTypeRepository;
 use App\Repositories\UserRepository;
 use App\Services\CacheService;
-use App\Traits\HttpResponseTrait;
 use App\Services\ProcessBatchService;
+use App\Traits\HttpResponseTrait;
+use App\Traits\ImportHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use App\Traits\ImportHelper;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Bus;
+use Maatwebsite\Excel\Facades\Excel;
 
 class FilingController extends Controller
 {
@@ -101,30 +94,30 @@ class FilingController extends Controller
             $fileNameWithExtension = strtolower($uploadedFile->getClientOriginalName());
             $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
             $fileExtension = strtolower($uploadedFile->getClientOriginalExtension());
-            $uniqueFileName = $fileName . '_' . time() . '.' . $fileExtension;
+            $uniqueFileName = $fileName.'_'.time().'.'.$fileExtension;
 
             // 3. Almacenamiento Físico (Carpeta Temporal Aislada)
-            $tempSubfolder = 'temp/filings/zip/' . $batchId;
+            $tempSubfolder = 'temp/filings/zip/'.$batchId;
             $filePath = $uploadedFile->storeAs($tempSubfolder, $uniqueFileName, Constants::DISK_FILES);
 
             // Nota: fullPath es útil para ZipArchive, pero recuerda que depende del driver local
-            $fullPath = storage_path('app/public/' . $filePath);
+            $fullPath = storage_path('app/public/'.$filePath);
 
             // 4. Preparar Metadata
             $metadata = [
-                'file_name'     => $uniqueFileName,
+                'file_name' => $uniqueFileName,
                 'original_name' => $fileNameWithExtension,
-                'file_size'     => $uploadedFile->getSize(),
-                'path_zip'      => $filePath,                 // Ruta relativa
-                'full_path'     => $fullPath,                 // Ruta absoluta
-                'disk'          => Constants::DISK_FILES,
-                'user_id'       => $user_id,
-                'company_id'    => $company_id,
-                'started_at'    => now()->toDateTimeString(),
-                'status'        => 'uploaded',                // <--- Status aquí mismo
-                'type'          => StatusFilingEnum::FILING_EST_001->value, // <--- Tipo aquí mismo
+                'file_size' => $uploadedFile->getSize(),
+                'path_zip' => $filePath,                 // Ruta relativa
+                'full_path' => $fullPath,                 // Ruta absoluta
+                'disk' => Constants::DISK_FILES,
+                'user_id' => $user_id,
+                'company_id' => $company_id,
+                'started_at' => now()->toDateTimeString(),
+                'status' => 'uploaded',                // <--- Status aquí mismo
+                'type' => StatusFilingEnum::FILING_EST_001->value, // <--- Tipo aquí mismo
                 'process_batch_id' => $batchId,
-                'total_rows'    => 1,
+                'total_rows' => 1,
             ];
 
             // 5. Redis: Estado en Tiempo Real
@@ -185,7 +178,7 @@ class FilingController extends Controller
 
             if ($request->hasFile('archiveZip')) {
                 $file = $request->file('archiveZip');
-                $ruta = '/companies/company_' . $company_id . '/filings/' . $type->value . '/filing_' . $filing->id; // Ruta donde se guardará la carpeta
+                $ruta = '/companies/company_'.$company_id.'/filings/'.$type->value.'/filing_'.$filing->id; // Ruta donde se guardará la carpeta
                 $nombreArchivo = $file->getClientOriginalName(); // Obtiene el nombre original del archivo
                 $path_zip = $file->storeAs($ruta, $nombreArchivo, Constants::DISK_FILES); // Guarda el archivo con el nombre original
                 $filing->path_zip = $path_zip;
@@ -290,8 +283,8 @@ class FilingController extends Controller
                 foreach ($buildDataFinal as $invoice) {
 
                     // genero y guardo el archivo JSON de la factura
-                    $nameFile = $invoice[Constants::KEY_NUMFACT] . '.json';
-                    $routeJson = 'companies/company_' . $filing->company_id . '/filings/' . $filing->type->value . '/filing_' . $filing->id . '/invoices/' . $invoice[Constants::KEY_NUMFACT] . '/' . $nameFile; // Ruta donde se guardará la carpeta
+                    $nameFile = $invoice[Constants::KEY_NUMFACT].'.json';
+                    $routeJson = 'companies/company_'.$filing->company_id.'/filings/'.$filing->type->value.'/filing_'.$filing->id.'/invoices/'.$invoice[Constants::KEY_NUMFACT].'/'.$nameFile; // Ruta donde se guardará la carpeta
                     Storage::disk(Constants::DISK_FILES)->put($routeJson, json_encode($invoice)); // guardo el archivo
 
                     $sumTotalServices = sumVrServicio($invoice);
@@ -343,8 +336,8 @@ class FilingController extends Controller
                     $errorMessagesInvoice = $errorMessages->where('num_invoice', $invoice['numFactura'])->values();
 
                     // genero y guardo el archivo JSON de la factura
-                    $nameFile = $invoice['numFactura'] . '.json';
-                    $routeJson = 'companies/company_' . $filing->company_id . '/filings/' . $filing->type->value . '/filing_' . $filing->id . '/invoices/' . $invoice['numFactura'] . '/' . $nameFile; // Ruta donde se guardará la carpeta
+                    $nameFile = $invoice['numFactura'].'.json';
+                    $routeJson = 'companies/company_'.$filing->company_id.'/filings/'.$filing->type->value.'/filing_'.$filing->id.'/invoices/'.$invoice['numFactura'].'/'.$nameFile; // Ruta donde se guardará la carpeta
                     Storage::disk(Constants::DISK_FILES)->put($routeJson, json_encode($invoice)); // guardo el archivo
 
                     // Guardamos la factura y obtenemos el modelo creado
@@ -387,7 +380,7 @@ class FilingController extends Controller
     {
         return $this->execute(function () use ($request) {
 
-            if (!$request->hasFile('files')) {
+            if (! $request->hasFile('files')) {
                 return ['code' => 400, 'message' => 'No se encontraron archivos'];
             }
 
@@ -396,7 +389,7 @@ class FilingController extends Controller
             $modelId = $request->input('fileable_id');
 
             // Validar parámetros requeridos
-            if (!$company_id || !$modelType || !$modelId) {
+            if (! $company_id || ! $modelType || ! $modelId) {
                 return ['code' => 400, 'message' => 'Faltan parámetros requeridos'];
             }
 
@@ -406,13 +399,13 @@ class FilingController extends Controller
             $uploadId = uniqid();
 
             // Resolver el modelo completo
-            $modelClass = 'App\\Models\\' . $modelType;
-            if (!class_exists($modelClass)) {
+            $modelClass = 'App\\Models\\'.$modelType;
+            if (! class_exists($modelClass)) {
                 return ['code' => 400, 'message' => 'Modelo no válido'];
             }
             $modelInstance = $modelClass::find($modelId);
             $modelInstance->load(['filingInvoice']);
-            if (!$modelInstance) {
+            if (! $modelInstance) {
                 return ['code' => 404, 'message' => 'Instancia no encontrada'];
             }
 
@@ -511,7 +504,7 @@ class FilingController extends Controller
                     ProcessFilingValidationTxt::dispatch($filing->id, $jsonData, $lastFile);
                 } catch (\Exception $e) {
                     // Registrar error y continuar
-                    \Log::error("Error procesando archivo {$originalName}: " . $e->getMessage());
+                    \Log::error("Error procesando archivo {$originalName}: ".$e->getMessage());
 
                     continue;
                 }
@@ -568,7 +561,7 @@ class FilingController extends Controller
                     ProcessFilingValidationTxt::dispatch($filing->id, $jsonData, $lastFile);
                 } catch (\Exception $e) {
                     // Registrar error y continuar
-                    \Log::error("Error procesando archivo {$originalName}: " . $e->getMessage());
+                    \Log::error("Error procesando archivo {$originalName}: ".$e->getMessage());
 
                     continue;
                 }
@@ -594,7 +587,7 @@ class FilingController extends Controller
     {
         return $this->execute(function () use ($request) {
 
-            if (!$request->hasFile('files')) {
+            if (! $request->hasFile('files')) {
                 return ['code' => 400, 'message' => 'No se encontraron archivos'];
             }
 
@@ -603,7 +596,7 @@ class FilingController extends Controller
             $filing_id = $request->input('filing_id');
 
             // Validar parámetros requeridos
-            if (!$company_id || !$third_nit || !$filing_id) {
+            if (! $company_id || ! $third_nit || ! $filing_id) {
                 return ['code' => 400, 'message' => 'Faltan parámetros requeridos'];
             }
 
@@ -691,7 +684,7 @@ class FilingController extends Controller
 
     public function changeStatusFilingInvoicePreRadicated(Request $request, CacheService $cacheService)
     {
-        return $this->runTransaction(function () use ($request, $cacheService) {
+        return $this->runTransaction(function () use ($request) {
 
             $post = $request->all();
 
@@ -735,6 +728,7 @@ class FilingController extends Controller
         $this->startBenchmark('123');
         $invoiceAuditIds = $this->cargueInvoiceAudit($post);
         $this->endBenchmark('123');
+
         return $invoiceAuditIds;
     }
 
@@ -761,15 +755,15 @@ class FilingController extends Controller
                     'filing_invoice_id' => $filingInvoice['id'],
                     'invoice_number' => $filingInvoice['invoice_number'],
                     'total_value' => $filingInvoice['sumVr'],
-                    'origin' => "??",
-                    'expedition_date' => null, //preguntar a carlos andres que fecha es esta
-                    'date_entry' => null, //preguntar a carlos andres que fecha es esta
-                    'date_departure' => null, //preguntar a carlos andres que fecha es esta
-                    'modality' => "??",
+                    'origin' => '??',
+                    'expedition_date' => null, // preguntar a carlos andres que fecha es esta
+                    'date_entry' => null, // preguntar a carlos andres que fecha es esta
+                    'date_departure' => null, // preguntar a carlos andres que fecha es esta
+                    'modality' => '??',
 
-                    'regimen' => "??",
-                    'coverage' => "??",
-                    'contract_number' => $filing->contract?->name, //preguntar a carlos andres si este es el nombre o que campo es del contrato
+                    'regimen' => '??',
+                    'coverage' => '??',
+                    'contract_number' => $filing->contract?->name, // preguntar a carlos andres si este es el nombre o que campo es del contrato
                 ];
             }
             InvoiceAudit::insert($dataMasive);
@@ -801,7 +795,7 @@ class FilingController extends Controller
 
                 // 2️⃣ Sync invoice_audit <-> patient
                 $invoiceAudit->invoicePatients()->syncWithoutDetaching([
-                    $patient->id
+                    $patient->id,
                 ]);
 
                 // 3️⃣ Cargar servicios con el patient_id correcto
@@ -812,7 +806,7 @@ class FilingController extends Controller
                         'patient_id' => $patient->id,
                         'services' => $user['servicios'],
                         'filing_type' => $filingType,
-                    ]
+                    ],
                 ]);
             }
         }

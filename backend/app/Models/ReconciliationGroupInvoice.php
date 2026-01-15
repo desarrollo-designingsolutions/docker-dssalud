@@ -23,11 +23,11 @@ class ReconciliationGroupInvoice extends Model
 
     public function conciliation_invoice()
     {
-        return $this->hasOne(ConciliationInvoice::class, 'invoice_audit_id',"invoice_audit_id");
+        return $this->hasOne(ConciliationInvoice::class, 'invoice_audit_id', 'invoice_audit_id');
     }
 
     public function conciliation_result()
     {
-        return $this->hasMany(ConciliationResult::class, 'invoice_audit_id',"invoice_audit_id");
+        return $this->hasMany(ConciliationResult::class, 'invoice_audit_id', 'invoice_audit_id');
     }
 }

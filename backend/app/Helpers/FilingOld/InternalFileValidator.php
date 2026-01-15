@@ -52,7 +52,7 @@ class InternalFileValidator
         }
 
         $handle = fopen($filePath, 'r');
-        if (!$handle) {
+        if (! $handle) {
             ErrorCollector::addError(
                 $keyErrorRedis,
                 'ZIP_ERROR_010',

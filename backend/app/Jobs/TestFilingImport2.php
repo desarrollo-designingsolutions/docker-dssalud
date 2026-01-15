@@ -4,27 +4,23 @@ namespace App\Jobs;
 
 use App\Events\ImportProgressEvent;
 use App\Helpers\Common\ErrorCollector;
-use App\Models\ProcessBatch;
-use App\Helpers\Constants;
-use App\Helpers\Rips\CsvValidator;
-use App\Helpers\Rips\ErrorCodes;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Storage;
 
 class TestFilingImport2 implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
+
     protected int $lockTtl = 30;
+
     protected string $selectedQueue;
 
     public function __construct(string $batchId, string $selectedQueue)
@@ -39,7 +35,7 @@ class TestFilingImport2 implements ShouldQueue
         $lockKey = "validate_structure_lock:{$this->batchId}";
         $lock = Cache::lock($lockKey, $this->lockTtl);
 
-        if (!$lock->get()) {
+        if (! $lock->get()) {
             return;
         }
 
@@ -49,7 +45,7 @@ class TestFilingImport2 implements ShouldQueue
             $progressKey = "batch:{$this->batchId}:progress";
 
             // Inicializar progreso solo si no existe
-            if (!$redis->exists($progressKey)) {
+            if (! $redis->exists($progressKey)) {
                 $redis->set($progressKey, 0);
             }
 
@@ -85,10 +81,10 @@ class TestFilingImport2 implements ShouldQueue
                         event(new ImportProgressEvent(
                             $this->batchId,
                             $currentProgress,
-                            'Validando CSV - Progreso ' . $currentProgress . '/' . $metadata['total_rows'],
+                            'Validando CSV - Progreso '.$currentProgress.'/'.$metadata['total_rows'],
                             ErrorCollector::countErrors($this->batchId),
                             'active',
-                            'CSV ' . $currentProgress
+                            'CSV '.$currentProgress
                         ));
                     } finally {
                         $progressLock->release();
@@ -120,9 +116,9 @@ class TestFilingImport2 implements ShouldQueue
             }
 
         } catch (\Throwable $e) {
-            Log::error("TestFilingImport error: " . $e->getMessage(), [
+            Log::error('TestFilingImport error: '.$e->getMessage(), [
                 'batchId' => $this->batchId,
-                'exception' => $e
+                'exception' => $e,
             ]);
 
             // Marcar error en Redis
@@ -133,7 +129,7 @@ class TestFilingImport2 implements ShouldQueue
                 try {
                     $lock->release();
                 } catch (\Throwable $e) {
-                    Log::debug("Error liberando lock: " . $e->getMessage());
+                    Log::debug('Error liberando lock: '.$e->getMessage());
                 }
             }
         }

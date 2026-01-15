@@ -12,14 +12,12 @@ class ReconciliationGroup extends Model
 {
     use Cacheable, HasUuids, SoftDeletes;
 
-
     protected function casts(): array
     {
         return [
             'status' => StatusReconciliationGroupEnum::class,
         ];
     }
-
 
     public function third()
     {
@@ -38,12 +36,11 @@ class ReconciliationGroup extends Model
 
     public function thirdsFromAuditoryFinalReport()
     {
-        return $this->hasMany(AuditoryFinalReport::class,"nit","third_id");
+        return $this->hasMany(AuditoryFinalReport::class, 'nit', 'third_id');
     }
 
     public function conciliationResult()
     {
-        return $this->hasMany(ConciliationResult::class,"reconciliation_group_id","id");
+        return $this->hasMany(ConciliationResult::class, 'reconciliation_group_id', 'id');
     }
-
 }

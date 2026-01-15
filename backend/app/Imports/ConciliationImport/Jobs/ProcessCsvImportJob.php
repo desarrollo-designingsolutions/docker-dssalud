@@ -5,8 +5,6 @@ namespace App\Imports\ConciliationImport\Jobs;
 use App\Events\ImportProgressEvent;
 use App\Imports\ConciliationImport\Services\CsvValidationService;
 use App\Imports\ConciliationImport\Traits\ImportHelper;
-use App\Models\AuditoryFinalReport;
-use App\Models\InvoiceAudit;
 use App\Models\ProcessBatch;
 use App\Services\CacheService;
 use Illuminate\Bus\Queueable; // Importar la interfaz
@@ -81,7 +79,7 @@ class ProcessCsvImportJob implements ShouldBeUnique, ShouldQueue // Implementar 
             });
 
             // Log::info("Validando cabeceras y filas del CSV...");
-            $errors = $validationService->validateCsv($this->filePath,$this->reconciliation_group_id);
+            $errors = $validationService->validateCsv($this->filePath, $this->reconciliation_group_id);
 
             // Paso 3: Recolección y precarga de IDs de factura, y validación de facturas completas
             $this->dispatchProgressEvent($this->totalRows, 'Recolectando IDs de factura únicos', 'active', 'Recolectando IDs de factura únicos...');
@@ -106,7 +104,7 @@ class ProcessCsvImportJob implements ShouldBeUnique, ShouldQueue // Implementar 
 
             if (! empty($errors)) {
                 // Log::error('Validation errors found:');
-                $this->dispatchProgressEvent($this->totalRows, 'Errores de validación encontrados', 'failed', (string) $errorCount . ' errores');
+                $this->dispatchProgressEvent($this->totalRows, 'Errores de validación encontrados', 'failed', (string) $errorCount.' errores');
                 $this->storeErrorsFromRedis();
                 Redis::connection('redis_6380')->hset("batch:{$this->batchId}:metadata", 'status', 'failed'); // Cambiado a 'failed'
                 Redis::connection('redis_6380')->hset("batch:{$this->batchId}:metadata", 'completed_at', now()->toDateTimeString());
@@ -130,7 +128,7 @@ class ProcessCsvImportJob implements ShouldBeUnique, ShouldQueue // Implementar 
             // // Paso 4: Importación de datos
             // Log::info('CSV headers and rows are valid. Proceeding with import...');
             $this->dispatchProgressEvent($this->totalRows, 'Importando datos', 'finalizing', 'Iniciando...');
-            $this->import11ConcurrentCsv($this->filePath,$this->reconciliation_group_id); // Corregido el nombre de la función
+            $this->import11ConcurrentCsv($this->filePath, $this->reconciliation_group_id); // Corregido el nombre de la función
 
             $this->dispatchProgressEvent($this->totalRows, 'Importación completada', 'completed', 'Finalizado');
             Redis::connection('redis_6380')->hset("batch:{$this->batchId}:metadata", 'status', 'completed');
@@ -150,7 +148,7 @@ class ProcessCsvImportJob implements ShouldBeUnique, ShouldQueue // Implementar 
             // Log::info("Job de importación completado exitosamente para batch ID: {$this->batchId}");
 
         } catch (Throwable $e) {
-            Log::error(get_class($e) . ' ' . Str::of($e->getMessage())->limit(100)->value());
+            Log::error(get_class($e).' '.Str::of($e->getMessage())->limit(100)->value());
             Log::error('Error durante la importación en Job:', [
                 'exception' => $e->getMessage(),
                 'file' => $e->getFile(),

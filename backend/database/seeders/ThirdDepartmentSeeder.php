@@ -2,15 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Imports\ThirdDepartmentImportSeeder;
 use App\Models\ThirdDepartment;
 use App\Services\ExcelService;
 use Exception;
 use Illuminate\Database\Seeder;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Events\AfterImport;
-use Symfony\Component\Console\Helper\ProgressBar;
 
 class ThirdDepartmentSeeder extends Seeder
 {
@@ -41,7 +37,7 @@ class ThirdDepartmentSeeder extends Seeder
             $bar = $this->command->getOutput()->createProgressBar(count($sheet));
 
             foreach ($sheet as $dataSheet) {
-                  ThirdDepartment::updateOrCreate(
+                ThirdDepartment::updateOrCreate(
                     ['third_id' => $dataSheet[0]],
                     [
                         'municipio' => $dataSheet[1],

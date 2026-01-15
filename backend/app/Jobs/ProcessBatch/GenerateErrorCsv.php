@@ -2,6 +2,8 @@
 
 namespace App\Jobs\ProcessBatch;
 
+use App\Models\User;
+use App\Notifications\BellNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -9,15 +11,13 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
-use App\Models\User;
-use App\Notifications\BellNotification;
-use Illuminate\Support\Facades\Log;
 
 class GenerateErrorCsv implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $processKey;
+
     protected string $userId;
 
     public function __construct(string $processKey, string $userId)
@@ -29,17 +29,17 @@ class GenerateErrorCsv implements ShouldQueue
 
     public function handle(): void
     {
-        $rowsKey = $this->processKey . ':rows';
+        $rowsKey = $this->processKey.':rows';
         $metadata = Redis::hgetall($this->processKey);
         $fileName = $metadata['file_name'] ?? 'reporte_errores.csv';
 
         // Ruta temporal
-        $tempPath = 'temp/' . uniqid() . '.csv';
+        $tempPath = 'temp/'.uniqid().'.csv';
         Storage::disk('local')->put($tempPath, '');
         $handle = fopen(Storage::disk('local')->path($tempPath), 'w');
 
         // BOM para Excel (para que abra bien las tildes)
-        fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
         // Cabeceras
         fputcsv($handle, ['Tipo', 'Columna', 'Fila', 'Valor Errado', 'Mensaje', 'Archivo Original']);
@@ -52,7 +52,9 @@ class GenerateErrorCsv implements ShouldQueue
         while ($processed < $totalItems) {
             $chunk = Redis::lrange($rowsKey, $processed, $processed + $batchSize - 1);
 
-            if (empty($chunk)) break;
+            if (empty($chunk)) {
+                break;
+            }
 
             foreach ($chunk as $jsonRow) {
                 // ✅ Ahora sí funcionará porque el Worker guardó JSON
@@ -72,7 +74,7 @@ class GenerateErrorCsv implements ShouldQueue
                         $row['row_number'] ?? '',
                         $row['error_value'] ?? '',
                         $row['error_message'] ?? '',
-                        $fileOrigin
+                        $fileOrigin,
                     ]);
                 }
             }
@@ -84,7 +86,7 @@ class GenerateErrorCsv implements ShouldQueue
         fclose($handle);
 
         // Mover a public y limpiar
-        $publicPath = 'reports/' . $fileName;
+        $publicPath = 'reports/'.$fileName;
         Storage::disk('public')->put($publicPath, file_get_contents(Storage::disk('local')->path($tempPath)));
         Storage::disk('local')->delete($tempPath);
         Redis::del($this->processKey, $rowsKey);
@@ -98,7 +100,7 @@ class GenerateErrorCsv implements ShouldQueue
                 'subtitle' => 'Descargue su archivo de errores aquí.',
                 'type' => 'success',
                 'openInNewTab' => true,
-                'action_url' => $url
+                'action_url' => $url,
             ]));
         }
     }

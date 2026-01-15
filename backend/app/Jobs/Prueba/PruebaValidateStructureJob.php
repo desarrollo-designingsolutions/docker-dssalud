@@ -9,13 +9,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-
 class PruebaValidateStructureJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
+
     protected int $lockTtl = 30;
+
     protected string $selectedQueue;
 
     public function __construct(string $batchId, string $selectedQueue)
@@ -30,14 +31,9 @@ class PruebaValidateStructureJob implements ShouldQueue
 
         event(new ImportProgressEvent($this->batchId, 0, 'Iniciando importacion', 0, 'active', 'CSV'));
 
-
         sleep(20); // Simula tiempo de procesamiento
 
-
-
-         event(new ImportProgressEvent($this->batchId, 0, 'finalizacndo importacion', 0, 'completed', 'CSV'));
-
-
+        event(new ImportProgressEvent($this->batchId, 0, 'finalizacndo importacion', 0, 'completed', 'CSV'));
 
         try {
         } catch (\Throwable $e) {

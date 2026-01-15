@@ -2,20 +2,19 @@
 
 namespace App\Traits;
 
-use App\Models\ProcessBatch;
-use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\LazyCollection;
-use Illuminate\Support\Str;
 
 trait ImportHelper
 {
     protected float $benchmarkStartTime;
+
     protected int $benchmarkStartMemory;
+
     protected int $startQueries;
+
     protected string $currentBatchId;
+
     protected int $totalRowsForJobProgress;
 
     protected function startBenchmark(string $batchId): void
@@ -34,8 +33,8 @@ trait ImportHelper
 
         $formattedTime = match (true) {
             $executionTime >= 60 => sprintf('%dm %ds', floor($executionTime / 60), $executionTime % 60),
-            $executionTime >= 1 => round($executionTime, 2) . 's',
-            default => round($executionTime * 1000) . 'ms',
+            $executionTime >= 1 => round($executionTime, 2).'s',
+            default => round($executionTime * 1000).'ms',
         };
 
         Log::info(sprintf(
@@ -47,5 +46,4 @@ trait ImportHelper
             0
         ));
     }
-
 }

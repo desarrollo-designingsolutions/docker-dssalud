@@ -2,25 +2,26 @@
 
 namespace App\Jobs\ProcessBatch;
 
+use App\Models\User;
+use App\Notifications\BellNotification;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
-use App\Models\User;
-use App\Notifications\BellNotification;
-use Illuminate\Support\Facades\Log;
-use OpenSpout\Writer\XLSX\Writer;
 use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\XLSX\Writer;
 
 class GenerateErrorExcel implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $processKey;
+
     protected string $userId;
 
     public function __construct(string $processKey, string $userId)
@@ -32,18 +33,20 @@ class GenerateErrorExcel implements ShouldQueue
 
     public function handle(): void
     {
-        $rowsKey = $this->processKey . ':rows';
+        $rowsKey = $this->processKey.':rows';
 
         // Recover metadata
         $metadata = Redis::hgetall($this->processKey);
         $fileName = $metadata['file_name'] ?? 'reporte_datos.xlsx';
 
         // Create temp dir
-        $tempPath = storage_path('app/temp/' . uniqid() . '.xlsx');
-        if (!is_dir(dirname($tempPath))) mkdir(dirname($tempPath), 0755, true);
+        $tempPath = storage_path('app/temp/'.uniqid().'.xlsx');
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0755, true);
+        }
 
         try {
-            $writer = new Writer();
+            $writer = new Writer;
             $writer->openToFile($tempPath);
 
             $batchSize = 1000;
@@ -55,15 +58,19 @@ class GenerateErrorExcel implements ShouldQueue
             while ($processed < $totalItems) {
                 $chunk = Redis::lrange($rowsKey, $processed, $processed + $batchSize - 1);
 
-                if (empty($chunk)) break;
+                if (empty($chunk)) {
+                    break;
+                }
 
                 foreach ($chunk as $jsonRow) {
                     $row = json_decode($jsonRow, true);
 
-                    if (!$row || !is_array($row)) continue;
+                    if (! $row || ! is_array($row)) {
+                        continue;
+                    }
 
                     // 1. DYNAMIC HEADERS: Detect headers from the first valid row found
-                    if (!$headersWritten) {
+                    if (! $headersWritten) {
                         $headers = array_keys($row);
                         // Write Headers
                         $headerRow = Row::fromValues($headers);
@@ -76,7 +83,7 @@ class GenerateErrorExcel implements ShouldQueue
                     foreach ($headers as $header) {
                         // Ensure value is string/scalar
                         $val = $row[$header] ?? '';
-                        $rowData[] = is_array($val) ? json_encode($val) : (string)$val;
+                        $rowData[] = is_array($val) ? json_encode($val) : (string) $val;
                     }
 
                     $excelRow = Row::fromValues($rowData);
@@ -90,12 +97,12 @@ class GenerateErrorExcel implements ShouldQueue
             $writer->close();
 
             // Move to public
-            $publicPath = 'reports/' . $fileName;
+            $publicPath = 'reports/'.$fileName;
             Storage::disk('public')->put($publicPath, file_get_contents($tempPath));
 
             // Cleanup
             unlink($tempPath);
-            Redis::del($this->processKey, $rowsKey, $this->processKey . ':seen_rows');
+            Redis::del($this->processKey, $rowsKey, $this->processKey.':seen_rows');
 
             // Notify
             $url = Storage::disk('public')->url($publicPath);
@@ -107,14 +114,16 @@ class GenerateErrorExcel implements ShouldQueue
                     'subtitle' => 'Su archivo de datos está listo.',
                     'type' => 'success',
                     'openInNewTab' => true,
-                    'action_url' => $url
+                    'action_url' => $url,
                 ]));
             }
 
             Log::info("Excel Data generated: $fileName");
         } catch (\Throwable $e) {
-            Log::error("Error generating Data Excel: " . $e->getMessage());
-            if (file_exists($tempPath)) unlink($tempPath);
+            Log::error('Error generating Data Excel: '.$e->getMessage());
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
             throw $e;
         }
     }

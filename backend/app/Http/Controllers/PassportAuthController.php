@@ -198,7 +198,7 @@ class PassportAuthController extends Controller
             // Generar el enlace de restablecimiento
             $token = Password::getRepository()->create($user);
 
-            $action_url = env('SYSTEM_URL_FRONT') . 'ResetPassword/' . $token . '?email=' . urlencode($request->input('email'));
+            $action_url = env('SYSTEM_URL_FRONT').'ResetPassword/'.$token.'?email='.urlencode($request->input('email'));
 
             // Enviar el correo usando el job de Brevo
             BrevoProcessSendEmail::dispatch(
@@ -251,10 +251,7 @@ class PassportAuthController extends Controller
         });
     }
 
-
-
-
-    public function  prueba(Request $request)
+    public function prueba(Request $request)
     {
         $company_id = $request->input('company_id');
         $user_id = $request->input('user_id');
@@ -263,15 +260,13 @@ class PassportAuthController extends Controller
         // Generar batchId único
         $batchId = (string) Str::uuid();
 
-
         // Generar nombre único y ruta temporal (ya lo tenías así)
         $fileNameWithExtension = strtolower($uploadedFile->getClientOriginalName());
         $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
         $fileExtension = strtolower($uploadedFile->getClientOriginalExtension());
-        $uniqueFileName = $fileName . '_' . time() . '.' . $fileExtension;
-        $tempSubfolder = 'temp/rips/' . $batchId;
+        $uniqueFileName = $fileName.'_'.time().'.'.$fileExtension;
+        $tempSubfolder = 'temp/rips/'.$batchId;
         $filePath = $uploadedFile->storeAs($tempSubfolder, $uniqueFileName, Constants::DISK_FILES);
-
 
         // Metadata que vas a guardar en Redis (igual a lo que tenías)
         $metadata = [
@@ -302,13 +297,10 @@ class PassportAuthController extends Controller
             'metadata' => json_encode($metadata),
         ]);
 
-
         // Despachar job de validación de estructura (asíncrono)
         $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_PRUEBA);
 
-
         PruebaValidateStructureJob::dispatch($batchId, $selectedQueue);
-
 
         return [
             'code' => 200,

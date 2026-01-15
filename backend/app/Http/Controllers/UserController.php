@@ -21,8 +21,7 @@ class UserController extends Controller
         protected UserRepository $userRepository,
         protected RoleRepository $roleRepository,
         protected CompanyRepository $companyRepository,
-    ) {
-    }
+    ) {}
 
     public function paginate(Request $request)
     {
@@ -52,7 +51,7 @@ class UserController extends Controller
                 'code' => 200,
                 'roles' => $roles,
                 'companies' => $companies,
-                ...$thirds
+                ...$thirds,
             ];
         });
     }
@@ -93,7 +92,7 @@ class UserController extends Controller
                 'form' => $form,
                 'roles' => $roles,
                 'companies' => $companies,
-                ...$thirds
+                ...$thirds,
             ];
         });
     }
@@ -147,7 +146,7 @@ class UserController extends Controller
 
             return [
                 'code' => 200,
-                'message' => 'User ' . $msg . ' con éxito',
+                'message' => 'User '.$msg.' con éxito',
             ];
         });
     }
@@ -178,7 +177,7 @@ class UserController extends Controller
             // Cambiar la photo
             if ($request->file('photo')) {
                 $file = $request->file('photo');
-                $ruta = 'companies/company_' . $user->company_id . '/' . $user->id . $request->input('photo');
+                $ruta = 'companies/company_'.$user->company_id.'/'.$user->id.$request->input('photo');
                 $photo = $file->store($ruta, Constants::DISK_FILES);
                 $user->photo = $photo;
                 $user->save();

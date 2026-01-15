@@ -11,7 +11,6 @@ class ConciliationResult extends Model
 
     protected $guarded = [];
 
-
     public function invoiceAudit()
     {
         return $this->belongsTo(InvoiceAudit::class);

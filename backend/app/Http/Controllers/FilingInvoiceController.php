@@ -27,8 +27,7 @@ class FilingInvoiceController extends Controller
         protected FilingInvoiceRepository $filingInvoiceRepository,
         protected SupportTypeRepository $supportTypeRepository,
         protected CompanyRepository $companyRepository,
-    ) {
-    }
+    ) {}
 
     // Nuevo método para paginación
     public function getPaginatedUsers(Request $request, $invoiceId)

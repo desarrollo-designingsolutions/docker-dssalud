@@ -52,7 +52,7 @@ class ProcessBatchService
                 return $processBatch->processed_records;
             }
         } catch (\Exception $e) {
-            Log::error("Error incrementando registros procesados para batch {$batchId}: " . $e->getMessage());
+            Log::error("Error incrementando registros procesados para batch {$batchId}: ".$e->getMessage());
         }
 
         return 0;
@@ -71,7 +71,7 @@ class ProcessBatchService
                 'status' => $finalStatus,
             ]);
         } catch (\Exception $e) {
-            Log::error("Error finalizando proceso para batch {$batchId}: " . $e->getMessage());
+            Log::error("Error finalizando proceso para batch {$batchId}: ".$e->getMessage());
             ProcessBatch::where('batch_id', $batchId)->update(['status' => 'failed']);
             throw $e;
         }
@@ -122,15 +122,10 @@ class ProcessBatchService
         }
     }
 
-
-
     const REDIS_ROUND_ROBIN_KEY = 'import_system:round_robin_index';
 
     /**
      * Selects the next queue in a round-robin fashion.
-     *
-     * @param array $availableQueues
-     * @return string
      */
     public static function selectAvailableQueueRoundRobin(array $availableQueues): string
     {

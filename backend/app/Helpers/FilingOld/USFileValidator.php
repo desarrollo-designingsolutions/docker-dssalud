@@ -3,7 +3,6 @@
 namespace App\Helpers\FilingOld;
 
 use App\Helpers\Common\ErrorCollector;
-use App\Helpers\FilingOld\ErrorCodes;
 
 class USFileValidator
 {
@@ -12,32 +11,37 @@ class USFileValidator
         $data = array_map('trim', explode(',', $rowData));
 
         $cols = [
-            0 => 'Columna 1: Tipo de identificación',
-            1 => 'Columna 2: Número de identificación',
-            // ... resto de mapeo igual ...
-            8 => 'Columna 9: Edad',
-            9 => 'Columna 10: Unidad de medida',
-            10 => 'Columna 11: Sexo',
-            11 => 'Columna 12: Depto',
-            12 => 'Columna 13: Municipio',
-            13 => 'Columna 14: Zona',
+            0 => 'Columna 1: Tipo de identificación del usuario.',
+            1 => 'Columna 2: Número de identificación del usuario del sistema.',
+            2 => 'Columna 3: Código entidad administradora.',
+            3 => 'Columna 4: Tipo de usuario.',
+            4 => 'Columna 5: Primer apellido del usuario.',
+            5 => 'Columna 6: Segundo apellido del usuario.',
+            6 => 'Columna 7: Primer nombre del usuario.',
+            7 => 'Columna 8: Segundo nombre del usuario.',
+            8 => 'Columna 9: Edad.',
+            9 => 'Columna 10: Unidad de medida de la edad.',
+            10 => 'Columna 11: Sexo.',
+            11 => 'Columna 12: Código del departamento de residencia habitual.',
+            12 => 'Columna 13: Código del municipio de residencia habitual.',
+            13 => 'Columna 14: Zona de residencia habitual.',
         ];
 
         $tipoId = $data[0] ?? '';
-        $numId  = $data[1] ?? '';
+        $numId = $data[1] ?? '';
         $tipoUsu = $data[3] ?? '';
-        $ape1   = $data[4] ?? '';
-        $nom1   = $data[6] ?? '';
-        $edad   = $data[8] ?? '';
+        $ape1 = $data[4] ?? '';
+        $nom1 = $data[6] ?? '';
+        $edad = $data[8] ?? '';
         $unidad = $data[9] ?? '';
-        $sexo   = $data[10] ?? '';
-        $dep    = $data[11] ?? '';
-        $mun    = $data[12] ?? '';
-        $zona   = $data[13] ?? '';
+        $sexo = $data[10] ?? '';
+        $dep = $data[11] ?? '';
+        $mun = $data[12] ?? '';
+        $zona = $data[13] ?? '';
 
         // TIPO ID
         $allowedTypes = ['CC', 'CE', 'CD', 'PA', 'SC', 'PE', 'RE', 'RC', 'TI', 'CN', 'AS', 'MS', 'DE', 'PT', 'SI'];
-        if (!in_array($tipoId, $allowedTypes)) {
+        if (! in_array($tipoId, $allowedTypes)) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_001', $cols[0], $tipoId, $tipoId);
         }
 
@@ -59,7 +63,7 @@ class USFileValidator
 
         if (isset($rules[$tipoId])) {
             $rule = $rules[$tipoId];
-            if ($rule['numeric'] && !empty($numId) && !ctype_digit($numId)) {
+            if ($rule['numeric'] && ! empty($numId) && ! ctype_digit($numId)) {
                 self::logError($batchId, $rowNumber, $fileName, $data, $rule['errNum'], $cols[1], $numId);
             }
             if (strlen($numId) > $rule['max']) {
@@ -67,21 +71,21 @@ class USFileValidator
             }
         }
 
-        if ($tipoId == 'TI' && !ctype_digit($numId) && !empty($numId)) {
+        if ($tipoId == 'TI' && ! ctype_digit($numId) && ! empty($numId)) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_017', $cols[1], $numId);
         }
 
         // EDAD
         if ($edad === '') {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_026', $cols[8], '');
-        } elseif (!ctype_digit($edad)) {
+        } elseif (! ctype_digit($edad)) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_AGE', $cols[8], $edad);
         }
 
         // UNIDAD MEDIDA
         if ($unidad === '') {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_029', $cols[9], '');
-        } elseif (!in_array($unidad, ['1', '2', '3'])) {
+        } elseif (! in_array($unidad, ['1', '2', '3'])) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_028', $cols[9], $unidad);
         }
 
@@ -98,38 +102,51 @@ class USFileValidator
         }
 
         // TIPO USUARIO
-        if (!in_array($tipoUsu, ['1','2','3','4','5','6','7','8'])) {
+        if (! in_array($tipoUsu, ['1', '2', '3', '4', '5', '6', '7', '8'])) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_023', $cols[3], $tipoUsu);
         }
 
         // NOMBRES Y APELLIDOS
-        if ($ape1 === '') self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_024', $cols[4], '');
-        if ($nom1 === '') self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_025', $cols[6], '');
+        if ($ape1 === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_024', $cols[4], '');
+        }
+        if ($nom1 === '') {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_025', $cols[6], '');
+        }
 
         // SEXO
         if ($sexo === '') {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_030', $cols[10], '');
-        } elseif (!in_array($sexo, ['M', 'F'])) {
+        } elseif (! in_array($sexo, ['M', 'F'])) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_034', $cols[10], $sexo);
         }
 
         // UBICACION
-        if (empty($dep)) self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_032', $cols[11], '');
-        if (empty($mun)) self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_033', $cols[12], '');
+        if (empty($dep)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_032', $cols[11], '');
+        }
+        if (empty($mun)) {
+            self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_033', $cols[12], '');
+        }
 
         if ($zona === '') {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_033', $cols[13], ''); // Reuso codigo segun tu original
-        } elseif (!in_array($zona, ['U', 'R'])) {
+        } elseif (! in_array($zona, ['U', 'R'])) {
             self::logError($batchId, $rowNumber, $fileName, $data, 'FILE_US_ERROR_033', $cols[13], $zona);
         }
     }
 
-    private static function logError($batchId, $row, $fileName, $data, $constName, $colTitle, $val, ...$msgArgs) {
+    private static function logError($batchId, $row, $fileName, $data, $constName, $colTitle, $val, ...$msgArgs)
+    {
         $debugData = ['file' => $fileName, 'code' => ErrorCodes::getCode($constName), 'row_data' => $data];
         ErrorCollector::addError(
-            $batchId, $row, $colTitle,
-            "[" . ErrorCodes::getCode($constName) . "] " . ErrorCodes::getMessage($constName, ...$msgArgs),
-            'R', $val, json_encode($debugData)
+            $batchId,
+            $row,
+            $colTitle,
+            '['.ErrorCodes::getCode($constName).'] '.ErrorCodes::getMessage($constName, ...$msgArgs),
+            'R',
+            $val,
+            json_encode($debugData)
         );
     }
 }

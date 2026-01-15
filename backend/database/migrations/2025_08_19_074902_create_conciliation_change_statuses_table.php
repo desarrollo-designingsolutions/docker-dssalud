@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('conciliation_change_statuses', function (Blueprint $table) {
-            $table->uuid("id")->primary();
-            $table->foreignUuid("company_id")->constrained();
-            $table->foreignUuid("user_id")->constrained();
-            $table->foreignUuid("reconciliation_group_id")->constrained("reconciliation_groups");
-            $table->string("status");
-            $table->string("reason");
+            $table->uuid('id')->primary();
+            $table->foreignUuid('company_id')->constrained();
+            $table->foreignUuid('user_id')->constrained();
+            $table->foreignUuid('reconciliation_group_id')->constrained('reconciliation_groups');
+            $table->string('status');
+            $table->string('reason');
             $table->timestamps();
         });
     }

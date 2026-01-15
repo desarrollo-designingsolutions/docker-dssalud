@@ -9,15 +9,17 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class ProcessFilingRecord implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $batchId;
+
     public int $rowNumber;
+
     public string $selectedQueue;
 
     public function __construct(string $batchId, int $rowNumber, string $selectedQueue)
@@ -65,7 +67,7 @@ class ProcessFilingRecord implements ShouldQueue
             }
 
         } catch (\Throwable $e) {
-            Log::error("Error en fila {$this->rowNumber}: " . $e->getMessage());
+            Log::error("Error en fila {$this->rowNumber}: ".$e->getMessage());
             // Opcional: Registrar error en tu ErrorCollector
         }
     }

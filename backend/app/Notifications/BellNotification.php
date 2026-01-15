@@ -76,6 +76,7 @@ class BellNotification extends Notification
     {
         return $this->data['action_url'] ?? null;
     }
+
     protected function getOpenInNewTab()
     {
         return $this->data['openInNewTab'] ?? false;

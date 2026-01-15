@@ -8,11 +8,9 @@ use App\Enums\Filing\TypeFilingEnum;
 use App\Helpers\Constants;
 use App\Models\Filing;
 use App\Models\FilingInvoice;
-use App\Models\User;
 use App\QueryBuilder\Filters\QueryFilters;
 use App\QueryBuilder\Sort\RelatedTableSort;
 use App\Traits\FilterManager;
-use Illuminate\Support\Facades\Log;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -92,11 +90,11 @@ class FilingRepository extends BaseRepository
                 $query->having('filing_invoice_pre_radicated_count', '=', $filter['filing_invoice_pre_radicated_count']);
             }
 
-            if (!empty($request['company_id'])) {
+            if (! empty($request['company_id'])) {
                 $query = $query->where('filings.company_id', $request['company_id']);
             }
 
-            if (!empty($request['user_id'])) {
+            if (! empty($request['user_id'])) {
                 $query = $query->whereHas('contract.third', function ($query) use ($request) {
                     $query->whereHas('users', function ($query) use ($request) {
                         $query->where('users.id', $request['user_id']);
@@ -114,7 +112,7 @@ class FilingRepository extends BaseRepository
     {
         $request = $this->clearNull($request);
 
-        if (!empty($request['id'])) {
+        if (! empty($request['id'])) {
             $data = $this->model->find($request['id']);
         } else {
             $data = $this->model::newModelInstance();
@@ -133,7 +131,7 @@ class FilingRepository extends BaseRepository
     {
         // Construcción de la consulta
         $data = $this->model->with($with)->where(function ($query) use ($request) {
-            if (!empty($request['id'])) {
+            if (! empty($request['id'])) {
                 $query->where('id', $request['id']);
             }
         });

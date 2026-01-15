@@ -2,27 +2,26 @@
 
 namespace App\Jobs\ProcessBatch;
 
+use App\Models\ProcessBatchesError;
+use App\Models\User;
+use App\Notifications\BellNotification;
+use Carbon\Carbon;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Bus;
-use App\Models\ProcessBatchesError;
-use App\Jobs\ProcessBatch\ProcessErrorChunk;
-use App\Jobs\ProcessBatch\GenerateErrorCsv;
-use App\Models\User;
-use App\Notifications\BellNotification;
-use Carbon\Carbon;
-use Illuminate\Bus\Batchable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class CsvReportErrors implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $customBatchId;
+
     protected string $userId;
 
     public function __construct(string $customBatchId, string $userId)
@@ -45,9 +44,10 @@ class CsvReportErrors implements ShouldQueue
                     $user->notify(new BellNotification([
                         'title' => 'Reporte de Errores',
                         'subtitle' => 'No se encontraron errores para el batch especificado.',
-                        'type' => 'info'
+                        'type' => 'info',
                     ]));
                 }
+
                 return;
             }
 
@@ -55,10 +55,10 @@ class CsvReportErrors implements ShouldQueue
             $numChunks = ceil($totalCount / $chunkSize);
 
             // Generar clave única para el proceso en Redis
-            $processKey = 'error_report:' . $this->customBatchId . ':' . uniqid();
+            $processKey = 'error_report:'.$this->customBatchId.':'.uniqid();
 
             // Generar nombre único para el archivo
-            $fileName = 'errors_report_' . Carbon::now()->format('Ymd_His') . '.csv';
+            $fileName = 'errors_report_'.Carbon::now()->format('Ymd_His').'.csv';
 
             // Guardar metadata en Redis
             Redis::hmset($processKey, [
@@ -66,7 +66,7 @@ class CsvReportErrors implements ShouldQueue
                 'file_name' => $fileName,
                 'started_at' => Carbon::now()->toIso8601String(),
                 'total_records' => $totalCount,
-                'processed' => 0
+                'processed' => 0,
             ]);
 
             Log::info("Iniciando generación de reporte CSV de errores para batch {$this->customBatchId} con {$totalCount} errores en {$numChunks} chunks.");
@@ -94,11 +94,11 @@ class CsvReportErrors implements ShouldQueue
                 $user->notify(new BellNotification([
                     'title' => 'Error al generar reporte de errores',
                     'subtitle' => $e->getMessage(),
-                    'type' => 'error'
+                    'type' => 'error',
                 ]));
             }
             // Limpiar Redis en caso de error
-            $rowsKey = $processKey . ':rows';
+            $rowsKey = $processKey.':rows';
             Redis::del($processKey, $rowsKey);
             throw $e; // Re-throw para marcar el job como fallido
         }

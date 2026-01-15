@@ -30,7 +30,7 @@ Route::get('/pruebaRedisExcel', function () {
     foreach ($redisKeys as $index => $key) {
         // Extraer el UUID (la parte entre 'invoice_audit:' y ':db_count')
         $uuid = explode(':', $key)[1];
-        $sheet->setCellValue('A' . ($index + 2), $uuid);
+        $sheet->setCellValue('A'.($index + 2), $uuid);
     }
 
     // Crear una respuesta para descargar el archivo Excel
@@ -72,7 +72,7 @@ Route::get('/', function () {
 });
 
 // // Incluir rutas personalizadas
-require __DIR__ . '/reconciliationGroupWeb.php';
+require __DIR__.'/reconciliationGroupWeb.php';
 
 Route::get('/s3-test/{folder?}', function ($folder = null) {
     try {
@@ -86,9 +86,9 @@ Route::get('/s3-test/{folder?}', function ($folder = null) {
         ]);
 
         // Prepare the prefix (e.g., '02/subfolder/' or '' for root)
-        $prefix = $folder ? rtrim($folder, '/') . '/' : '';
+        $prefix = $folder ? rtrim($folder, '/').'/' : '';
 
-        $prefix = $prefix . '1032365030/1032365030-JSE933/';
+        $prefix = $prefix.'1032365030/1032365030-JSE933/';
         $items = ['files' => [], 'folders' => []];
         $continuationToken = null;
 
@@ -145,9 +145,9 @@ Route::get('/s3-test/{folder?}', function ($folder = null) {
 
         return response()->json(['prefix' => $prefix, 'items' => $items]);
     } catch (\Exception $e) {
-        \Log::error('S3 Listing Error: ' . $e->getMessage());
+        \Log::error('S3 Listing Error: '.$e->getMessage());
 
-        return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        return response()->json(['error' => 'Error: '.$e->getMessage()], 500);
     }
 });
 
@@ -158,9 +158,9 @@ Route::get('/s3', function () {
 
         return response()->json($files);
     } catch (\Exception $e) {
-        \Log::error('S3 Error: ' . $e->getMessage()); // Log the error
+        \Log::error('S3 Error: '.$e->getMessage()); // Log the error
 
-        return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        return response()->json(['error' => 'Error: '.$e->getMessage()], 500);
     }
 });
 
@@ -184,9 +184,9 @@ Route::get('/s2', function () {
 
         return response()->json($files);
     } catch (\Exception $e) {
-        \Log::error('S3 Listing Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        \Log::error('S3 Listing Error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
-        return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        return response()->json(['error' => 'Error: '.$e->getMessage()], 500);
     }
 });
 
@@ -198,31 +198,31 @@ Route::get('/ftp', function () {
     $company = Company::find($company_id);
     $modelType = 'Filing';
 
-    if (!$folderPath) {
+    if (! $folderPath) {
         return ['code' => 400, 'message' => 'Debe proporcionar una ruta de carpeta'];
     }
 
     // Construir la ruta completa en el directorio public
     $fullPath = public_path($folderPath);
-    if (!is_dir($fullPath)) {
+    if (! is_dir($fullPath)) {
         return ['code' => 400, 'message' => 'La ruta especificada no es un directorio válido'];
     }
 
     // 2. Leer todos los nombres de archivos de la carpeta
     $files = scandir($fullPath);
-    $fileList = array_filter($files, fn($file) => !in_array($file, ['.', '..']));
+    $fileList = array_filter($files, fn ($file) => ! in_array($file, ['.', '..']));
     if (empty($fileList)) {
         return ['code' => 400, 'message' => 'No se encontraron archivos en la carpeta'];
     }
 
     // Resolver el modelo
-    $modelClass = 'App\\Models\\' . $modelType;
-    if (!class_exists($modelClass)) {
+    $modelClass = 'App\\Models\\'.$modelType;
+    if (! class_exists($modelClass)) {
         return ['code' => 400, 'message' => 'Modelo no válido'];
     }
     $modelInstance = $modelClass::find($modelId);
     $modelInstance->load(['filingInvoice']);
-    if (!$modelInstance) {
+    if (! $modelInstance) {
         return ['code' => 404, 'message' => 'Instancia no encontrada'];
     }
 
@@ -241,8 +241,8 @@ Route::get('/ftp', function () {
     $seenConsecutives = [];
 
     foreach ($fileList as $index => $fileName) {
-        $fullFilePath = $fullPath . '/' . $fileName;
-        if (!is_file($fullFilePath)) {
+        $fullFilePath = $fullPath.'/'.$fileName;
+        if (! is_file($fullFilePath)) {
             continue; // Saltar si no es un archivo
         }
 
@@ -253,7 +253,7 @@ Route::get('/ftp', function () {
         [$nit, $numFac, $codeSupport, $consecutive] = array_pad($fileParts, 4, null);
 
         // Validaciones
-        if (count($fileParts) !== 4 || !$extension) {
+        if (count($fileParts) !== 4 || ! $extension) {
             $errors[] = [
                 'fileName' => $fileName,
                 'message' => 'Formato inválido. Debe ser NIT_NUMFAC_CODESUPPORT_CONSECUTIVE.EXT',
@@ -271,7 +271,7 @@ Route::get('/ftp', function () {
             continue;
         }
 
-        if (!in_array($numFac, $validInvoiceNumbers)) {
+        if (! in_array($numFac, $validInvoiceNumbers)) {
             $errors[] = [
                 'fileName' => $fileName,
                 'message' => "El número de factura ({$numFac}) no es válido",
@@ -280,7 +280,7 @@ Route::get('/ftp', function () {
             continue;
         }
 
-        if (!in_array($codeSupport, $validSupportCodes)) {
+        if (! in_array($codeSupport, $validSupportCodes)) {
             $errors[] = [
                 'fileName' => $fileName,
                 'message' => "El código de soporte ({$codeSupport}) no es válido",
@@ -289,7 +289,7 @@ Route::get('/ftp', function () {
             continue;
         }
 
-        if (!ctype_digit($consecutive)) {
+        if (! ctype_digit($consecutive)) {
             $errors[] = [
                 'fileName' => $fileName,
                 'message' => "El consecutivo ({$consecutive}) debe ser un valor numérico",
@@ -355,13 +355,13 @@ Route::get('/ftp', function () {
     // Respuesta final
     $response = [
         'code' => 200,
-        'message' => 'Se procesaron ' . count($validFiles) . " de {$fileCount} archivos",
+        'message' => 'Se procesaron '.count($validFiles)." de {$fileCount} archivos",
         'upload_id' => $uploadId,
         'count' => count($validFiles),
         'errors' => $errors,
     ];
 
-    if (!empty($errors)) {
+    if (! empty($errors)) {
         $response['code'] = 202; // Indica que hubo éxito parcial
         $response['message'] .= '. Algunos archivos no se procesaron debido a errores.';
     }
