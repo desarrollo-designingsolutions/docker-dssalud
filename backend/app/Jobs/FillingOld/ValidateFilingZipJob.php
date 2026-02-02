@@ -3,7 +3,7 @@
 namespace App\Jobs\FillingOld;
 
 use App\Events\ImportProgressEvent;
-use App\Helpers\Common\ErrorCollector; // <--- Namespace correcto
+use App\Helpers\Common\ErrorCollector;
 use App\Helpers\FilingOld\ErrorCodes;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
