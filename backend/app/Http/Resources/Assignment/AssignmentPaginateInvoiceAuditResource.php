@@ -26,6 +26,7 @@ class AssignmentPaginateInvoiceAuditResource extends JsonResource
             'status' => $this->assignmentStatusFor([]),
             'user_names' => $this->user_names,
             'count_users' => $this->count_users,
+            'codes_glosa' => $this->glosas->pluck('code_glosa_id')->unique()->implode(', '),
         ];
     }
 }
