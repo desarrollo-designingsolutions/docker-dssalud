@@ -98,9 +98,12 @@ const optionsTable = {
     { key: 'detail_code', title: 'Código' },
     { key: 'description', title: 'Descripcion' },
     { key: 'quantity', title: 'Cantidad' },
-    { key: "unit_value", title: 'Valor Unitario' },
-    { key: "moderator_value", title: 'Valor Moderadora' },
-    { key: "total_value", title: 'Valor Total' },
+    { key: "unit_value", title: 'Valor Unitario', minWidth: 200 },
+    { key: "moderator_value", title: 'Valor Moderadora', minWidth: 200 },
+    { key: "codes_glosa", title: 'Códigos Glosa', minWidth: 200 },
+    { key: "value_glosa", title: 'Valor Glosado', minWidth: 200 },
+    { key: "value_approved", title: 'Valor Aprobado', minWidth: 200 },
+    { key: "total_value", title: 'Valor Total', minWidth: 200 },
     { key: 'actionsBtn', title: 'Acciones', sortable: false },
   ],
   showSelect: true,
@@ -332,6 +335,10 @@ const isLoadingBtn = computed(() => {
             <VCol cols="12" sm="6" md="3">
               <div>Valor Glosado</div>
               <div>{{ value_glosa }}</div>
+            </VCol>
+            <VCol cols="12" sm="6" md="3">
+              <div>Codigos de glosa</div>
+              <div>{{ invoiceAudit.codes_glosa }}</div>
             </VCol>
           </VRow>
         </div>

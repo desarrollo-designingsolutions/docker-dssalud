@@ -35,6 +35,7 @@ const optionsTable = {
     { key: 'full_name', title: 'Nombre' },
     { key: 'gender', title: 'Genero' },
     { key: 'glosas', title: 'Glosas', sortable: false },
+    { key: "codes_glosa", title: 'Códigos Glosa', minWidth: 200 },
     { key: 'value_glosa', title: 'Valor Glosado' },
     { key: 'value_approved', title: 'Valor Aprobado' },
     { key: 'total_value', title: 'Valor Total' },

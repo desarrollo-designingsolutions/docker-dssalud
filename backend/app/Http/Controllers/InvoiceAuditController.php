@@ -167,6 +167,7 @@ class InvoiceAuditController extends Controller
             $assignment = $this->assignmentRepository->searchOne($request->all());
 
             $invoice_audit['total_value'] = formatNumber($invoice_audit['total_value']);
+            $invoice_audit['codes_glosa'] = $invoice_audit->glosas->pluck('code_glosa_id')->unique()->implode(', ');
 
             return [
                 'code' => 200,

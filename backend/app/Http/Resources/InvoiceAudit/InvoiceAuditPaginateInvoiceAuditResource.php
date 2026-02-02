@@ -25,6 +25,7 @@ class InvoiceAuditPaginateInvoiceAuditResource extends JsonResource
             'value_approved' => formatNumber($this->value_approved),
             'status' => $this->status,
             'user_names' => $this->user_names,
+            'codes_glosa' => $this->glosas->pluck('code_glosa_id')->unique()->implode(', '),
         ];
     }
 }

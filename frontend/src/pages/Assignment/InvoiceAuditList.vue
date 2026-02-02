@@ -29,6 +29,7 @@ const optionsTable = {
     { key: 'count_services', title: 'Cant Servicios', sortable: false },
     { key: 'total_value', title: 'Valor Factura', sortable: false },
     { key: 'glosas', title: 'Glosas', sortable: false },
+    { key: "codes_glosa", title: 'Códigos Glosa', minWidth: 200 },
     { key: 'value_glosa', title: 'Valor Glosado', sortable: false },
     { key: 'value_approved', title: 'Valor Aprobado', sortable: false },
     { key: 'status', title: 'Estado', sortable: false },
