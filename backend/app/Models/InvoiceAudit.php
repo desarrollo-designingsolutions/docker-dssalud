@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Assignment\StatusAssignmentEnum;
-use App\Traits\Searchable;
+use App\Traits\Cacheable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +13,7 @@ class InvoiceAudit extends Model
 {
     protected $guarded = [];
 
-    use HasFactory, HasUuids, Searchable, SoftDeletes;
+    use Cacheable, HasFactory, HasUuids, SoftDeletes;
 
     public function files()
     {
@@ -72,7 +72,7 @@ class InvoiceAudit extends Model
         $hasPending = $this->assignment()
             ->whereNot('status', StatusAssignmentEnum::ASSIGNMENT_EST_003->value)
             ->where(function ($query) use ($request) {
-                if (! empty($request['user_id'])) {
+                if (!empty($request['user_id'])) {
                     $query->where('user_id', $request['user_id']);
                 }
             })

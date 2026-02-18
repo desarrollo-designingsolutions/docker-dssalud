@@ -166,7 +166,7 @@ class BaseRepository
     public function delete($id)
     {
         $model = $this->find($id);
-        if (! $model) {
+        if (!$model) {
             return null;
         }
         $model->delete();
@@ -184,7 +184,7 @@ class BaseRepository
     public function replicate(Model $model, $data = [])
     {
         $clone = $model->replicate();
-        if (! empty($data)) {
+        if (!empty($data)) {
             foreach ($data as $key => $value) {
                 $clone->$key = $value;
             }
@@ -206,7 +206,7 @@ class BaseRepository
     public function changeState($id, $estado, $column = 'estado', $with = [])
     {
         $model = $this->find($id);
-        if (! $model) {
+        if (!$model) {
             return null;
         }
         $model->$column = $estado;
@@ -278,7 +278,8 @@ class BaseRepository
      */
     public function pdf($vista, $data = [], $nombre = 'archivo', $is_stream = true, $landscape = false)
     {
-        $cacheKey = $this->cacheService->generateKey("pdf_{$vista}", $data, 'string');
+        $params = is_object($data) && method_exists($data, 'toArray') ? $data->toArray() : (array) $data;
+        $cacheKey = $this->cacheService->generateKey("pdf_{$vista}", $params, 'string');
         $pdfContent = $this->cacheService->remember($cacheKey, function () use ($vista, $data, $landscape) {
             $pdf = \PDF::loadView($vista, compact('data'));
             if ($landscape) {
@@ -286,12 +287,19 @@ class BaseRepository
             }
 
             return $pdf->output();
-        }); // Usa el defaultTtl de CacheService
+        });
 
         $nombre .= '.pdf';
-        $pdf = \PDF::loadHTML($pdfContent);
 
-        return $is_stream ? $pdf->stream($nombre) : $pdf->download($nombre);
+        if ($is_stream) {
+            return response($pdfContent)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'inline; filename="' . $nombre . '"');
+        }
+
+        return response($pdfContent)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $nombre . '"');
     }
 
     /**
@@ -355,7 +363,7 @@ class BaseRepository
 
         foreach ($batches as $batch) {
             // Insertar registros en el lote actual
-            if (! $this->model->newQuery()->insert($batch)) {
+            if (!$this->model->newQuery()->insert($batch)) {
                 throw new \Exception('Failed to insert batch of records.');
             }
         }

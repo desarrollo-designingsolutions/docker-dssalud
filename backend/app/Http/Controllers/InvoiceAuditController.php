@@ -435,4 +435,13 @@ class InvoiceAuditController extends Controller
             ];
         });
     }
+
+    public function generatePdf($id)
+    {
+        return $this->execute(function () use ($id) {
+            $data = $this->invoiceAuditRepository->find($id);
+
+            return $this->invoiceAuditRepository->pdf('Pdf.invoice-audit', $data, 'invoice-audit-' . $id);
+        }, rawResponse: true);
+    }
 }

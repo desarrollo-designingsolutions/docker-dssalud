@@ -41,4 +41,6 @@ Route::post('/invoiceAudit/successFinalizedAudit', [InvoiceAuditController::clas
 Route::post('/invoiceAudit/successReturnAudit', [InvoiceAuditController::class, 'successReturnAudit']);
 
 Route::post('/invoiceAudit/uploadCsv', [InvoiceAuditController::class, 'uploadCsv']);
+
+Route::get('/invoiceAudit/generatePdf/{id}', [InvoiceAuditController::class, 'generatePdf']);
 // });

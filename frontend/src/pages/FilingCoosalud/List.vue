@@ -35,7 +35,8 @@ const optionsTable = {
     { key: "regimen", title: 'Régimen', sortable: false },
     { key: "coverage", title: 'Cobertura', sortable: false },
     { key: "contract_number", title: 'Contrato', sortable: false },
-    { key: 'status', title: 'Estado', sortable: false }
+    { key: 'status', title: 'Estado', sortable: false },
+    { key: 'actions2', title: 'Acciones', sortable: false }
   ],
   actions: {
     changeStatus: {
@@ -71,6 +72,27 @@ const refModalUploadFileCsv = ref()
 const openModalUploadFileCsv = () => {
   refModalUploadFileCsv.value.openModal()
 }
+
+const downloadPdf = async (id: number) => {
+  try {
+    // loading.pdf = true
+
+    const now = new Date();
+    const fecha = now.toLocaleDateString('es-CO').replace(/\//g, '-');
+    const hora = now.toLocaleTimeString('es-CO', { hour12: false }).replace(/:/g, '-');
+
+    const api = `/invoiceAudit/generatePdf/${id}`
+    const nameFile = `invoiceAudit_${fecha}_${hora}`;
+    const ext = "pdf"
+    const params = {}
+
+    await downloadBlob("get", api, nameFile, ext, params)
+  } catch (error) {
+    console.error('Error al descargar el archivo:', error);
+  } finally {
+    // loading.pdf = false
+  }
+};
 </script>
 
 <template>
@@ -100,6 +122,9 @@ const openModalUploadFileCsv = () => {
             <div class="my-2">
               <VImg style="width: 80px;" :src="storageBack(item.logo)"></VImg>
             </div>
+          </template>
+          <template #item.actions2="{ item }">
+            <VBtn size="small" color="primary" icon="tabler-file-type-pdf" @click="downloadPdf(item.id)" />
           </template>
         </TableFullNew>
       </VCardText>

@@ -79,7 +79,6 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
             'nit',
             'numero_factura',
             'valor_factura',
-            'origen',
             'fecha_factura',
             'fecha_inicio',
             'fecha_fin',
@@ -194,7 +193,7 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
                 'third_id' => $thirdId,
                 'invoice_number' => $row[$colMap['numero_factura']],
                 'total_value' => floatval(str_replace(',', '.', $row[$colMap['valor_factura']])),
-                'origin' => $row[$colMap['origen']],
+                'origin' => 'Radicacion',
                 'expedition_date' => $this->parseDate($row[$colMap['fecha_factura']]),
                 'date_entry' => $this->parseDate($row[$colMap['fecha_inicio']]),
                 'date_departure' => $this->parseDate($row[$colMap['fecha_fin']]),
@@ -269,17 +268,19 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
         if (!$this->isValidDate($row[$colMap['fecha_factura']])) {
             $errors[] = $this->addContentError('fecha_factura', $line);
         }
-        // Regla 6: fecha_inicio (yyyy-mm-dd)
-        if (!$this->isValidDate($row[$colMap['fecha_inicio']])) {
+
+        // Regla 6: fecha_inicio (yyyy-mm-dd) solo si existe numero_factura
+        if (!empty($row[$colMap['numero_factura']]) && !$this->isValidDate($row[$colMap['fecha_inicio']])) {
             $errors[] = $this->addContentError('fecha_inicio', $line);
         }
-        // Regla 7: fecha_fin (yyyy-mm-dd)
-        if (!$this->isValidDate($row[$colMap['fecha_fin']])) {
+
+        // Regla 7: fecha_fin (yyyy-mm-dd) solo si existe numero_factura
+        if (!empty($row[$colMap['numero_factura']]) && !$this->isValidDate($row[$colMap['fecha_fin']])) {
             $errors[] = $this->addContentError('fecha_fin', $line);
         }
 
         // Reglas 8, 9, 10, 11: Strings obligatorios
-        foreach (['modalidad', 'regimen', 'cobertura', 'contrato', 'estado'] as $field) {
+        foreach (['modalidad', 'regimen', 'cobertura', 'estado'] as $field) {
             if (empty($row[$colMap[$field]])) {
                 $errors[] = $this->addContentError($field, $line);
             }

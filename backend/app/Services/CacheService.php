@@ -14,7 +14,7 @@ class CacheService
      */
     public function generateKey(string $prefix, array $params = [], string $type = 'string'): string
     {
-        $suffix = ! empty($params) ? '_'.md5(serialize($params)) : '';
+        $suffix = !empty($params) ? '_' . md5(serialize($params)) : '';
 
         $project = env('KEY_REDIS_PROJECT');
 
@@ -92,7 +92,7 @@ class CacheService
 
         do {
             [$cursor, $keys] = Redis::scan($cursor, 'MATCH', $fullPattern, 'COUNT', 100);
-            if (! empty($keys)) {
+            if (!empty($keys)) {
                 $array = [];
                 foreach ($keys as $key => $value) {
                     $newK = str_replace($cachePrefix, '', $value);

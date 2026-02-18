@@ -123,3 +123,36 @@ export function getInvoiceAuditStatus(value: string) {
   // Retornar el título y el color, o un valor predeterminado si no coincide
   return INVOICE_AUDIT_STATUS_MAP[value] || { title: 'Desconocido' };
 }
+
+export const downloadBlob = async (method:string = "get", api: string, nameFile: string, format_ext: string, params:any = {}) => {
+  try {
+ 
+      const config = {
+        responseType: 'blob' as const
+      };
+      
+      // Hacer la solicitud GET al endpoint
+    const response = method === 'get' 
+      ? await useAxios(api).get({ ...config, params })
+      : await useAxios(api).post(params, config);
+    
+    // Crear un Blob a partir de la respuesta
+    const blob = new Blob([response.data], { type: `application/${format_ext}` });
+
+    // Crear un enlace temporal para la descarga
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${nameFile}.${format_ext}`); // Nombre del archivo
+    document.body.appendChild(link);
+    link.click();
+
+    // Limpiar
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Error al descargar el archivo:', error);
+  } finally {
+  }
+};
