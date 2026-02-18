@@ -160,9 +160,6 @@
                 <v-icon icon="tabler-trash" />
                 <v-tooltip activator="parent" location="top">Eliminar proceso</v-tooltip>
               </v-btn>
-
-              {{ process.status }} - aca
-              {{ process.metadata?.errors_count }} - aca
             </div>
           </v-list-item>
         </v-list>
