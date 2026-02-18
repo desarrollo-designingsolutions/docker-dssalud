@@ -14,7 +14,8 @@ class ProcessBatch extends Model
     protected function casts(): array
     {
         return [
-
+            'metadata' => 'json',
         ];
+
     }
 }

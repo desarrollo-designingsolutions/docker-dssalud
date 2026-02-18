@@ -8,11 +8,13 @@ use App\Exports\Service\ServiceListExcelExport;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditListResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateBatcheResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateInvoiceAuditResource;
+use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateInvoiceAuditAllResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginatePatientResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateServiceResource;
 use App\Http\Resources\InvoiceAudit\InvoiceAuditPaginateThirdsResource;
 use App\Jobs\BrevoProcessSendEmail;
-use App\Notifications\BellNotification;
+use App\Services\ProcessBatchService;
+use App\Jobs\InvoiceAudit\ValidateInvoiceAuditCsvJob;
 use App\Repositories\AssignmentRepository;
 use App\Repositories\CodeGlosaRepository;
 use App\Repositories\InvoiceAuditRepository;
@@ -23,6 +25,10 @@ use App\Repositories\UserRepository;
 use App\Services\CacheService;
 use App\Traits\HttpResponseTrait;
 use Illuminate\Http\Request;
+use App\Helpers\Constants;
+use App\Models\ProcessBatch;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Redis;
 use Maatwebsite\Excel\Facades\Excel;
 
 class InvoiceAuditController extends Controller
@@ -111,6 +117,23 @@ class InvoiceAuditController extends Controller
 
             $data = $this->invoiceAuditRepository->paginateInvoiceAudit($request->all());
             $tableData = InvoiceAuditPaginateInvoiceAuditResource::collection($data);
+
+            return [
+                'code' => 200,
+                'tableData' => $tableData,
+                'lastPage' => $data->lastPage(),
+                'totalData' => $data->total(),
+                'totalPage' => $data->perPage(),
+                'currentPage' => $data->currentPage(),
+            ];
+        });
+    }
+
+    public function paginateInvoiceAuditAll(Request $request)
+    {
+        return $this->execute(function () use ($request) {
+            $data = $this->invoiceAuditRepository->paginateInvoiceAuditAll($request->all());
+            $tableData = InvoiceAuditPaginateInvoiceAuditAllResource::collection($data);
 
             return [
                 'code' => 200,
@@ -311,9 +334,9 @@ class InvoiceAuditController extends Controller
 
             $this->assignmentRepository->changeStatusAssigmentMasive($request);
 
-            $this->cacheService->clearByPrefix($this->key_redis_project.'string:assignments_paginate_count_all_data*');
-            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateThirds*');
-            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateBatche*');
+            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:assignments_paginate_count_all_data*');
+            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateThirds*');
+            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateBatche*');
 
             return [
                 'code' => 200,
@@ -330,13 +353,85 @@ class InvoiceAuditController extends Controller
 
             $this->assignmentRepository->changeStatusAssigmentMasiveReturn($request);
 
-            $this->cacheService->clearByPrefix($this->key_redis_project.'string:assignments_paginate_count_all_data*');
-            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateThirds*');
-            $this->cacheService->clearByPrefix($this->key_redis_project.'string:invoice_audits_paginateBatche*');
+            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:assignments_paginate_count_all_data*');
+            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateThirds*');
+            $this->cacheService->clearByPrefix($this->key_redis_project . 'string:invoice_audits_paginateBatche*');
 
             return [
                 'code' => 200,
                 'message' => 'Auditoria finalizada con exito',
+            ];
+        });
+    }
+
+    public function uploadCsv(Request $request)
+    {
+        return $this->runTransaction(function () use ($request) {
+            // 1. Recolección de Datos
+            $company_id = $request->input('company_id');
+            $user_id = $request->input('user_id');
+            $uploadedFile = $request->file('file');
+            $batchId = Str::uuid()->toString();
+
+            // 2. Normalización del Nombre del Archivo
+            $fileNameWithExtension = strtolower($uploadedFile->getClientOriginalName());
+            $fileName = pathinfo($fileNameWithExtension, PATHINFO_FILENAME);
+            $fileExtension = strtolower($uploadedFile->getClientOriginalExtension());
+            $uniqueFileName = $fileName . '_' . time() . '.' . $fileExtension;
+
+            // 3. Almacenamiento Físico (Carpeta Temporal Aislada)
+            $tempSubfolder = 'temp/invoice_audit/csv/' . $batchId;
+            $filePath = $uploadedFile->storeAs($tempSubfolder, $uniqueFileName, Constants::DISK_FILES);
+            $fullPath = storage_path('app/public/' . $filePath);
+
+            // 4. Preparar Metadata
+            $metadata = [
+                'file_name' => $uniqueFileName,
+                'original_name' => $fileNameWithExtension,
+                'file_size' => $uploadedFile->getSize(),
+                'path' => $filePath,
+                'full_path' => $fullPath,
+                'disk' => Constants::DISK_FILES,
+                'user_id' => $user_id,
+                'company_id' => $company_id,
+                'started_at' => now()->toDateTimeString(),
+                'status' => 'uploaded',
+                'process_batch_id' => $batchId,
+            ];
+
+            // 5. Redis: Estado en Tiempo Real
+            $redis = Redis::connection('redis_6380');
+
+            // Usamos hset en lugar de hmset (estándar moderno)
+            $redis->hmset("batch:{$batchId}:metadata", $metadata);
+
+            // Expiración de seguridad (24 horas)
+            $redis->expire("batch:{$batchId}:metadata", 86400);
+
+            // 6. MySQL: Registro Histórico
+            ProcessBatch::create([
+                'id' => $batchId,
+                'batch_id' => $batchId,
+                'company_id' => $company_id,
+                'user_id' => $user_id,
+                'total_records' => 0,
+                'processed_records' => 0,
+                'error_count' => 0,
+                'status' => 'queued',
+                'metadata' => json_encode($metadata),
+            ]);
+
+            // 7. Selección de Cola y Dispatch (Fase 1: Validación ZIP)
+            $selectedQueue = ProcessBatchService::selectAvailableQueueRoundRobin(Constants::AVAILABLE_QUEUES_TO_IMPORTS_FILING_ZIP);
+
+            // AQUÍ EL CAMBIO DE NOMBRE: ValidateFilingZipJob
+            ValidateInvoiceAuditCsvJob::dispatch($batchId, $selectedQueue)->onQueue($selectedQueue);
+
+            return [
+                'code' => 200,
+                'message' => 'Archivo CSV subido. Iniciando validación de estructura.',
+                'batch_id' => $batchId,
+                'status' => 'success',
             ];
         });
     }

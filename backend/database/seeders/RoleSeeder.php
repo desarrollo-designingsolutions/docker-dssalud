@@ -23,6 +23,14 @@ class RoleSeeder extends Seeder
                 'name' => 'Super Administrador',
                 'description' => 'Super Administrador',
                 'viewable' => 0,
+                'company_id' => null,
+            ],
+            [
+                'id' => 'a08fb77e-e692-49cc-bb0a-389937936c4f',
+                'name' => 'Radicador (Thirds)',
+                'description' => 'Radicador (Thirds)',
+                'viewable' => 1,
+                'company_id' => Constants::COMPANY_UUID,
             ],
         ];
 
@@ -37,11 +45,13 @@ class RoleSeeder extends Seeder
             $model->guard_name = 'api';
             $model->description = $value['description'];
             $model->viewable = $value['viewable'];
-
+            $model->company_id = $value['company_id'];
             $model->save();
 
             // Asignar todos los permisos al primer rol
-            $model->givePermissionTo($permissionAll);
+            if ($key == 0) {
+                $model->givePermissionTo($permissionAll);
+            }
         }
 
         $bar->finish(); // Finalizar la barra

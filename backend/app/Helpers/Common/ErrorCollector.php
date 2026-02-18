@@ -82,6 +82,8 @@ class ErrorCollector
 
         // Metadatos
         $metadata = $redis->hgetall("batch:{$batchId}:metadata");
+        if (!$metadata)
+            $metadata = []; // Asegurar que es array
         $metadata['completed_at'] = now()->toDateTimeString();
 
         // Si no hay errores, cerramos limpio
@@ -89,7 +91,7 @@ class ErrorCollector
             ProcessBatch::where('batch_id', $batchId)->update([
                 'error_count' => 0,
                 'status' => 'completed',
-                'metadata' => json_encode($metadata),
+                'metadata' => $metadata, // El modelo ya tiene cast a json
                 'updated_at' => now(),
             ]);
             $redis->hmset("batch:{$batchId}:metadata", $metadata);
@@ -117,6 +119,13 @@ class ErrorCollector
             $chunkData = [];
             foreach ($rawErrors as $errorJson) {
                 $error = json_decode($errorJson, true);
+
+                // Asegurar que original_data es UTF-8 antes de json_encode
+                $originalData = isset($error['original_data']) ? $error['original_data'] : null;
+                if ($originalData && !mb_check_encoding($originalData, 'UTF-8')) {
+                    $originalData = mb_convert_encoding($originalData, 'UTF-8', 'ISO-8859-1');
+                }
+
                 $chunkData[] = [
                     'id' => Str::uuid(),
                     'batch_id' => $batchId,
@@ -125,7 +134,7 @@ class ErrorCollector
                     'error_message' => $error['error_message'],
                     'error_type' => $error['error_type'] ?? 'R',
                     'error_value' => $error['error_value'] ?? null,
-                    'original_data' => isset($error['original_data']) ? json_encode(['data' => $error['original_data']]) : null,
+                    'original_data' => $originalData ? json_encode(['data' => $originalData]) : null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -135,7 +144,7 @@ class ErrorCollector
             try {
                 ProcessBatchesError::insert($chunkData);
             } catch (\Exception $e) {
-                Log::error("Error insertando chunk errores batch {$batchId}: ".$e->getMessage());
+                Log::error("Error insertando chunk errores batch {$batchId}: " . $e->getMessage());
             }
 
             // Liberamos memoria de este ciclo
@@ -146,9 +155,10 @@ class ErrorCollector
         ProcessBatch::where('batch_id', $batchId)->update([
             'error_count' => $totalErrors,
             'status' => $status, // 'failed' o 'completed_with_errors'
-            'metadata' => json_encode($metadata),
+            'metadata' => $metadata, // El modelo ya tiene cast a json
             'updated_at' => now(),
         ]);
+
 
         $redis->hmset("batch:{$batchId}:metadata", $metadata);
 

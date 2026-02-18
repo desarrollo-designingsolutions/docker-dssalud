@@ -25,7 +25,7 @@ class PassportAuthLoginRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'email' => 'required|email',
+            'email' => 'required',
             'password' => 'required',
         ];
         if (! empty($this->tokenGoogle)) {

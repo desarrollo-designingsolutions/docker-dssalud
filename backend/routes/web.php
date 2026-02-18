@@ -1,11 +1,14 @@
 <?php
 
+use App\Helpers\Constants;
 use App\Http\Controllers\ConciliationController;
 use App\Jobs\File\ProcessMassUpload;
 use App\Jobs\ProcessInvoiceAuditCounts;
 use App\Models\Company;
 use App\Models\SupportType;
 use App\Models\User;
+use App\Models\Role;
+use App\Models\Third;
 use App\Notifications\BellNotification;
 use Aws\S3\S3Client;
 use Illuminate\Support\Facades\Redis;
@@ -14,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\DB;
 
 Route::get('/pruebaRedisExcel', function () {
     // Obtener todas las claves de Redis
@@ -55,9 +59,11 @@ Route::get('/pruebaRedis', function () {
         'message' => 'El procesamiento ha comenzado en segundo plano.',
     ]);
 });
+
 Route::get('/phpinfo', function () {
     phpinfo();
 });
+
 Route::get('/', function () {
 
     // $user = User::find("9e601862-728e-42a1-9efb-b46efaf731ba");

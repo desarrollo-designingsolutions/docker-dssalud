@@ -113,6 +113,12 @@ class PermissionSeeder extends Seeder
                 'description' => 'Visualizar Menu Facturas del prestador',
                 'menu_id' => 16,
             ],
+            [
+                'id' => 17,
+                'name' => 'filing.coosalud.list',
+                'description' => 'Visualizar Menu Radicacion Coosalud',
+                'menu_id' => 17,
+            ],
         ];
 
         // Inicializar la barra de progreso

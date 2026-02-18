@@ -148,6 +148,15 @@ class MenuSeeder extends Seeder
                 'icon' => 'tabler-file-dollar',
                 'requiredPermission' => 'providerInvoices.list',
             ],
+            
+            [
+                'id' => 17,
+                'order' => 170,
+                'title' => 'Radicacion Coosalud',
+                'to' => 'FilingCoosalud-List',
+                'icon' => 'tabler-file-zip',
+                'requiredPermission' => 'filing.coosalud.list',
+            ],
         ];
 
         // Inicializar la barra de progreso

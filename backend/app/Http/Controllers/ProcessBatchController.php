@@ -17,7 +17,8 @@ class ProcessBatchController extends Controller
 
     public function __construct(
         protected ProcessBatchesErrorRepository $processBatchesErrorRepository,
-    ) {}
+    ) {
+    }
 
     public function paginate(Request $request)
     {
@@ -42,7 +43,7 @@ class ProcessBatchController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($batch) {
-                $metadata = json_decode($batch->metadata, true);
+                $metadata = $batch->metadata;
 
                 $progress = $batch->total_records > 0 ? ($batch->total_records / $batch->total_records) * 100 : 0;
                 if ($batch->status == 'completed' || $batch->status == 'failed') { // Asegurar 100% para completados/fallidos
@@ -158,7 +159,7 @@ class ProcessBatchController extends Controller
             // (Asumiendo que tienes un modelo ProcessBatch)
             $batch = ProcessBatch::where('batch_id', $batchId)->first();
 
-            if (! $batch) {
+            if (!$batch) {
                 return response()->json(['error' => 'Proceso no encontrado'], 404);
             }
 
