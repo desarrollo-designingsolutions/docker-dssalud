@@ -40,6 +40,7 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
 
         $fullPath = $metadata['full_path'] ?? null;
         $companyId = $metadata['company_id'] ?? null;
+        $thirdId = $metadata['third_id'] ?? null;
 
         // 0. Update status to processing
         ProcessBatch::where('batch_id', $this->batchId)->update(['status' => 'processing']);
@@ -117,7 +118,7 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
                 continue;
             }
 
-            $rowErrors = $this->validateRow($row, $colMap, $rowCount, $thirds);
+            $rowErrors = $this->validateRow($row, $colMap, $rowCount, $thirds, $thirdId);
 
             if (!empty($rowErrors)) {
                 $errorsFound += count($rowErrors);
@@ -241,7 +242,7 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
         }
     }
 
-    private function validateRow($row, $colMap, $line, $thirds)
+    private function validateRow($row, $colMap, $line, $thirds, $thirdIdMetadata = null)
     {
         $errors = [];
 
@@ -251,6 +252,9 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
             $errors[] = $this->addContentError('nit', $line);
         } elseif (!isset($thirds[$nit])) {
             $errors[] = $this->addThirdNotFoundError($nit, $line);
+        } elseif ($thirdIdMetadata && $thirds[$nit] !== $thirdIdMetadata) {
+            // Regla 1.1: Si se especificó un third_id en metadata, el NIT debe coincidir con ese ID
+            $errors[] = $this->addThirdNotMatchingError($nit, $line);
         }
 
         // Regla 2: numero_factura (String obligatorio)
@@ -269,13 +273,13 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
             $errors[] = $this->addContentError('fecha_factura', $line);
         }
 
-        // Regla 6: fecha_inicio (yyyy-mm-dd) solo si existe numero_factura
-        if (!empty($row[$colMap['numero_factura']]) && !$this->isValidDate($row[$colMap['fecha_inicio']])) {
+        // Regla 6: fecha_inicio (yyyy-mm-dd) solo si existe
+        if (!empty($row[$colMap['fecha_inicio']]) && !$this->isValidDate($row[$colMap['fecha_inicio']])) {
             $errors[] = $this->addContentError('fecha_inicio', $line);
         }
 
-        // Regla 7: fecha_fin (yyyy-mm-dd) solo si existe numero_factura
-        if (!empty($row[$colMap['numero_factura']]) && !$this->isValidDate($row[$colMap['fecha_fin']])) {
+        // Regla 7: fecha_fin (yyyy-mm-dd) solo si existe
+        if (!empty($row[$colMap['fecha_fin']]) && !$this->isValidDate($row[$colMap['fecha_fin']])) {
             $errors[] = $this->addContentError('fecha_fin', $line);
         }
 
@@ -314,6 +318,15 @@ class ValidateInvoiceAuditCsvJob implements ShouldQueue
     {
         $msg = ErrorCodes::getMessage('THIRD_NOT_FOUND', $line, $nit);
         $code = ErrorCodes::getCode('THIRD_NOT_FOUND');
+
+        ErrorCollector::addError($this->batchId, $line, 'nit', $msg, 'R', $code, null);
+        return $msg;
+    }
+
+    private function addThirdNotMatchingError($nit, $line)
+    {
+        $msg = "Fila {$line}: Estas subiendo un nit que no te pertenece ({$nit})";
+        $code = 'CSV_005';
 
         ErrorCollector::addError($this->batchId, $line, 'nit', $msg, 'R', $code, null);
         return $msg;

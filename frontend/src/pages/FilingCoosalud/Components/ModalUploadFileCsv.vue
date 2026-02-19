@@ -202,6 +202,7 @@ const startUpload = async () => {
     formData.append('file', file.file);
     formData.append('company_id', String(authenticationStore.company.id));
     formData.append('user_id', String(authenticationStore.user.id));
+    formData.append('third_id', String(authenticationStore.user.third.id));
 
     try {
       file.status = 'uploading';

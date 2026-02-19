@@ -370,6 +370,7 @@ class InvoiceAuditController extends Controller
             // 1. Recolección de Datos
             $company_id = $request->input('company_id');
             $user_id = $request->input('user_id');
+            $third_id = $request->input('third_id');
             $uploadedFile = $request->file('file');
             $batchId = Str::uuid()->toString();
 
@@ -393,6 +394,7 @@ class InvoiceAuditController extends Controller
                 'full_path' => $fullPath,
                 'disk' => Constants::DISK_FILES,
                 'user_id' => $user_id,
+                'third_id' => $third_id,
                 'company_id' => $company_id,
                 'started_at' => now()->toDateTimeString(),
                 'status' => 'uploaded',
