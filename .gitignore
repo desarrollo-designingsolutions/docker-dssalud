@@ -65,5 +65,12 @@ docker/mysql_data
 docker/redis_data_6379
 docker/redis_data_6380
 
+# Docker
+docker/certbot/certs/
+
+# Archivos de entorno del SERVIDOR (contienen credenciales de producción)
+.env.server
+
 # Scripts
 # deploy-local.sh
+# deploy-server.sh
