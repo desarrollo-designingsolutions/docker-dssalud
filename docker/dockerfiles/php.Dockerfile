@@ -1,50 +1,35 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.3-apache
 
 # Instalar dependencias del sistema
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     git \
     curl \
-    mysql-client \
+    mariadb-client \
     msmtp \
     perl \
     wget \
     procps \
-    shadow \
-    libzip \
-    libpng \
-    libjpeg-turbo \
-    libwebp \
-    freetype \
-    icu \
-    netcat-openbsd \
-    nano \
-    libxslt
-
-# Instalar dependencias para compilar extensiones
-RUN apk add --no-cache --virtual build-essentials \
-    icu-dev \
-    icu-libs \
-    zlib-dev \
-    g++ \
-    make \
-    automake \
-    autoconf \
     libzip-dev \
     libpng-dev \
+    libjpeg62-turbo-dev \
     libwebp-dev \
-    libjpeg-turbo-dev \
-    libxslt-dev \
-    freetype-dev && \
-    docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg --with-webp && \
-    docker-php-ext-install gd mysqli pdo_mysql intl bcmath opcache exif zip xsl pcntl && \
-    apk del icu-dev zlib-dev g++ make automake autoconf libzip-dev libpng-dev libwebp-dev libjpeg-turbo-dev freetype-dev && \
-    rm -rf /usr/src/php*
+    libfreetype6-dev \
+    libicu-dev \
+    netcat-openbsd \
+    nano \
+    libxslt1-dev \
+    zip \
+    unzip
+
+# Instalar extensiones de PHP
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
+    docker-php-ext-install -j$(nproc) gd mysqli pdo_mysql intl bcmath opcache exif zip xsl pcntl
 
 # Instalar Redis
-RUN apk add --no-cache pcre-dev $PHPIZE_DEPS && \
-    pecl install redis && \
-    docker-php-ext-enable redis.so && \
-    apk del pcre-dev $PHPIZE_DEPS
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Habilitar mod_rewrite para Laravel
+RUN a2enmod rewrite
 
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -55,13 +40,17 @@ WORKDIR /var/www/html
 # Copiar el código de la aplicación
 COPY ./backend /var/www/html
 
-# Permisos para Laravel
-RUN addgroup -g 1000 laravel && adduser -G laravel -g laravel -s /bin/sh -D laravel
-RUN chown -R laravel:laravel /var/www/html
+# Configurar Apache para apuntar a /public
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Punto de entrada para ejecutar comandos cuando el contenedor inicie
+# Permisos para Laravel (usando el usuario www-data por defecto de la imagen)
+RUN chown -R www-data:www-data /var/www/html
+
+# Punto de entrada
 COPY ./docker/entrypoint/php.entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/php.entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/php.entrypoint.sh"]
-CMD ["php-fpm"]
+CMD ["apache2-foreground"]

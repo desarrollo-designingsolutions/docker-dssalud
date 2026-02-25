@@ -68,7 +68,7 @@ set -e
    
  
 # Iniciar PHP-FPM
-echo "🎯 Iniciando PHP-FPM..."
-exec php-fpm
+echo "🎯 Iniciando comando: $@"
+exec "$@"
 
 echo "🎯 Finalizado..."
