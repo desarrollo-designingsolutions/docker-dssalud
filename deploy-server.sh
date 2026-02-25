@@ -46,7 +46,13 @@ cp "$ENV_FILE" .env
 echo "✅ Usando configuración: $ENV_FILE"
 
 # Verificar que existen los certificados (si no, sugerir init-certbot.sh)
-export $(grep -v '^#' "$ENV_FILE" | xargs)
+# Cargar variables del .env (ignorando variables readonly del sistema como UID, HOSTNAME, etc.)
+set +e
+while IFS='=' read -r key value; do
+  [[ -z "$key" || "$key" =~ ^# ]] && continue
+  export "$key=$value" 2>/dev/null
+done < <(grep -v '^#' "$ENV_FILE" | grep -v '^$')
+set -e
 CERT_FILE_CHECK="/etc/letsencrypt/live/${NGINX_FRONT_SERVER_NAME}/fullchain.pem"
 
 CERT_VOLUME=$(docker volume ls -q | grep -w "dssalud_certbot_certs" || true)
@@ -72,16 +78,17 @@ fi
 
 echo ""
 echo "▶ Deteniendo contenedores anteriores..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans
 
 echo ""
-echo "▶ Levantando todos los servicios${BUILD_FLAG:+ (con rebuild)}..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d $BUILD_FLAG
+echo "▶ Levantando todos los servicios (con rebuild forzado)..."
+# Forzamos build para asegurar que use dssalud_vue_prod y no la de desarrollo
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build
 
 echo ""
 echo "▶ Esperando a que el build de Vue finalice..."
-# Esperar a que el contenedor vue termine (sale cuando el build está listo)
-docker wait "${COMPOSE_PROJECT_NAME}_vue" 2>/dev/null || true
+# Esperar a que el contenedor vue_prod termine (es solo un builder)
+docker wait "${COMPOSE_PROJECT_NAME}_vue_prod" 2>/dev/null || true
 
 echo ""
 echo "▶ Estado de los contenedores:"

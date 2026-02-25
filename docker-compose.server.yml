@@ -15,7 +15,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/dockerfiles/php.Dockerfile
-    user: "${UID}:${GID}"
+    user: "${DOCKER_UID}:${DOCKER_GID}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

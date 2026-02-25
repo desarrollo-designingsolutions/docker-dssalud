@@ -26,7 +26,13 @@ if [ ! -f "$ENV_FILE" ]; then
   echo "❌ No se encontró $ENV_FILE. Copia .env.server y ajusta los valores."
   exit 1
 fi
-export $(grep -v '^#' "$ENV_FILE" | xargs)
+# Cargar variables del .env (ignorando variables readonly del sistema como UID, HOSTNAME, etc.)
+set +e
+while IFS='=' read -r key value; do
+  [[ -z "$key" || "$key" =~ ^# ]] && continue
+  export "$key=$value" 2>/dev/null
+done < <(grep -v '^#' "$ENV_FILE" | grep -v '^$')
+set -e
 
 echo "📋 Dominios a certificar:"
 echo "   - ${NGINX_FRONT_SERVER_NAME}"
@@ -34,10 +40,18 @@ echo "   - ${NGINX_API_SERVER_NAME}"
 echo ""
 
 # -------------------------------------------------------------
+# PASO 0: Limpieza
+# -------------------------------------------------------------
+echo "▶ [0/4] Limpiando contenedores temporales previos..."
+docker stop certbot_init_nginx 2>/dev/null || true
+docker rm certbot_init_nginx 2>/dev/null || true
+
+# -------------------------------------------------------------
 # PASO 1: Levantar solo Nginx con una config HTTP temporal
 # para que Certbot pueda completar el challenge webroot
 # -------------------------------------------------------------
 echo "▶ [1/4] Levantando Nginx temporalmente para el challenge HTTP..."
+echo "   (Asegúrate de que nada esté usando el puerto 80 en el host)"
 
 # Config HTTP temporal (sin SSL, solo el bloque del challenge)
 cat > /tmp/nginx_certbot_init.conf << EOF

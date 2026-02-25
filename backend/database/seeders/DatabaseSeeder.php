@@ -24,8 +24,8 @@ class DatabaseSeeder extends Seeder
             WorldTableSeeder::class,
             MenuSeeder::class,
             PermissionSeeder::class,
-            RoleSeeder::class,
             CompanySeeder::class,
+            RoleSeeder::class,
             UserSeeder::class,
 
                 // ThirdSeederXlsx::class,
